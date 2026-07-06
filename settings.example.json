@@ -1,0 +1,38 @@
+{
+  "模型设置": {
+    "默认模型": "xiaomi/mimo-v2.5-pro",
+    "Base URL": "https://api.example.com/v1",
+    "API Key": "sk-your-api-key-here",
+    "Planner 模型": "xiaomi/mimo-v2.5-pro",
+    "SimpleCoder 模型": "xiaomi/mimo-v2.5",
+    "ComplexCoder 模型": "xiaomi/mimo-v2.5-pro",
+    "Tester 模型": "xiaomi/mimo-v2.5"
+  },
+  "Agent 设置": {
+    "默认Agent": "planner",
+    "审批模式": true
+  },
+  "Memory 设置": {
+    "自动更新Memory": true,
+    "Memory压缩": true,
+    "压缩阈值": 1000
+  },
+  "Workflow 设置": {
+    "开启约束智能检索": true,
+    "开启自动约束检查": true,
+    "自动修正": true,
+    "最大修正次数": 3,
+    "修正失败自动回滚": true,
+    "自动更新文档": true,
+    "Git提交建议": true
+  },
+  "RAG 设置": {
+    "知识库路径": "knowledge/",
+    "检索数量": 5,
+    "相似度阈值": 0.7
+  },
+  "Tool 设置": {
+    "工具目录": "tools/",
+    "自动发现": true
+  }
+}
