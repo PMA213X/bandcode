@@ -4,6 +4,12 @@ FastAPI 应用框架搭建
 """
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from api.errors import register_error_handlers
+from config.logging import setup_logging, get_logger
+
+# 设置日志
+setup_logging()
+logger = get_logger("bandcode")
 
 # 创建 FastAPI 应用实例
 app = FastAPI(
@@ -21,10 +27,14 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# 注册全局异常处理
+register_error_handlers(app)
+
 
 @app.get("/")
 async def root():
     """健康检查接口"""
+    logger.info("健康检查请求")
     return {
         "code": 0,
         "data": {"status": "running", "version": "1.0.0"},
@@ -57,4 +67,5 @@ app.include_router(users_router, prefix="/api")
 if __name__ == "__main__":
     import uvicorn
 
+    logger.info("BandCode 后端服务启动中...")
     uvicorn.run(app, host="0.0.0.0", port=8000)
