@@ -120,6 +120,20 @@ export interface ToolCallResponse {
   result: string;
 }
 
+export interface ToolDefinition {
+  name: string;
+  description: string;
+  parameters: Record<string, { type: string; description: string }>;
+}
+
+export interface ProjectStatusResponse {
+  name: string;
+  version: string;
+  agents: string[];
+  memory_layers: string[];
+  tools: string[];
+}
+
 // === SSE 事件类型 ===
 
 export type SSEEventType =
