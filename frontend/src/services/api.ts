@@ -1,4 +1,5 @@
 import axios, { AxiosInstance, AxiosResponse } from "axios";
+import { ApiError } from "./errors";
 import type {
   ApiResponse,
   CreateUserRequest,
@@ -30,8 +31,10 @@ class ApiClient {
     this.client.interceptors.response.use(
       (response) => response,
       (error) => {
-        console.error("API Error:", error.message);
-        return Promise.reject(error);
+        const endpoint = error.config?.url || "unknown";
+        const code = error.response?.status || 0;
+        const message = error.response?.data?.message || error.message;
+        return Promise.reject(new ApiError(message, code, endpoint));
       }
     );
   }
