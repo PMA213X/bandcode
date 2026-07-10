@@ -5,17 +5,16 @@ GET /api/tools/list - 获取工具列表
 """
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
-from typing import Any, Optional
+from typing import Any, Dict
 
 router = APIRouter(prefix="/tools", tags=["工具"])
 
 
 class ToolCallRequest(BaseModel):
-    """工具调用请求"""
+    """工具调用请求（与前端 types/api.ts 一致）"""
 
-    tool_name: str
-    arguments: dict = {}
-    session_id: Optional[str] = None
+    tool: str
+    args: Dict[str, Any] = {}
 
 
 # 模拟工具定义（后续会对接 tools/registry.py）
@@ -83,18 +82,15 @@ async def call_tool(request: ToolCallRequest):
     """
     调用工具
     """
-    if request.tool_name not in TOOLS_REGISTRY:
-        raise HTTPException(
-            status_code=404, detail=f"工具 '{request.tool_name}' 不存在"
-        )
+    if request.tool not in TOOLS_REGISTRY:
+        raise HTTPException(status_code=404, detail=f"工具 '{request.tool}' 不存在")
 
     # 模拟工具执行（后续会对接 tools/registry.py）
-    tool = TOOLS_REGISTRY[request.tool_name]
+    tool = TOOLS_REGISTRY[request.tool]
     result = {
-        "tool": request.tool_name,
-        "status": "success",
-        "output": f"模拟执行 {tool['description']}",
-        "arguments": request.arguments,
+        "tool": request.tool,
+        "success": True,
+        "result": f"模拟执行 {tool['description']}",
     }
 
     return {"code": 0, "data": result, "message": "工具执行成功"}

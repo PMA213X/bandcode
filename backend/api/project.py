@@ -12,20 +12,22 @@ import json
 router = APIRouter(prefix="/project", tags=["项目"])
 
 
-class InitProjectRequest(BaseModel):
-    """初始化项目请求"""
+class ProjectInitRequest(BaseModel):
+    """初始化项目请求（与前端 types/api.ts 一致）"""
 
-    project_path: str = "."
-    project_name: Optional[str] = None
+    project_name: str
+    path: str
+    language: Optional[str] = None
+    framework: Optional[str] = None
 
 
 @router.post("/init")
-async def init_project(request: InitProjectRequest):
+async def init_project(request: ProjectInitRequest):
     """
     初始化项目
     创建 .mimo/ 目录结构和配置文件
     """
-    project_path = Path(request.project_path)
+    project_path = Path(request.path)
 
     # 创建 .mimo 目录结构
     mimo_dirs = [
@@ -47,9 +49,10 @@ async def init_project(request: InitProjectRequest):
     config_path = project_path / ".mimo/config.json"
     if not config_path.exists():
         default_config = {
-            "project_name": request.project_name or project_path.name,
+            "project_name": request.project_name,
             "version": "1.0.0",
-            "created_at": "2026-07-10",
+            "language": request.language,
+            "framework": request.framework,
         }
         config_path.write_text(
             json.dumps(default_config, ensure_ascii=False, indent=2), encoding="utf-8"
@@ -58,9 +61,9 @@ async def init_project(request: InitProjectRequest):
     return {
         "code": 0,
         "data": {
-            "project_path": str(project_path),
-            "created_dirs": created_dirs,
-            "config_path": str(config_path),
+            "project": request.project_name,
+            "mimo_dir": str(project_path / ".mimo"),
+            "structure": {dir: str(project_path / dir) for dir in mimo_dirs},
         },
         "message": "项目初始化成功",
     }
@@ -75,8 +78,22 @@ async def get_project_status():
     status = {
         "name": "BandCode",
         "version": "1.0.0",
-        "agents": ["planner", "simple_coder", "complex_coder", "tester", "constraint", "review"],
-        "memory_layers": ["global", "project", "task", "session", "checkpoint", "notes"],
+        "agents": [
+            "planner",
+            "simple_coder",
+            "complex_coder",
+            "tester",
+            "constraint",
+            "review",
+        ],
+        "memory_layers": [
+            "global",
+            "project",
+            "task",
+            "session",
+            "checkpoint",
+            "notes",
+        ],
         "tools": [
             "read_file",
             "write_file",

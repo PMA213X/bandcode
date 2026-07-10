@@ -5,25 +5,24 @@ POST /api/users/create - 创建用户
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from typing import Optional
+from datetime import datetime
 
 router = APIRouter(prefix="/users", tags=["用户"])
 
 
 class CreateUserRequest(BaseModel):
-    """创建用户请求"""
+    """创建用户请求（与前端 types/api.ts 一致）"""
 
     username: str
-    email: Optional[str] = None
-    display_name: Optional[str] = None
+    preferences: Optional[dict] = None
 
 
 class UserResponse(BaseModel):
     """用户响应"""
 
-    id: str
+    user_id: str
     username: str
-    email: Optional[str] = None
-    display_name: Optional[str] = None
+    created_at: str
 
 
 # 临时存储（后续会对接数据库）
@@ -40,10 +39,9 @@ async def create_user(request: CreateUserRequest):
 
     user_id = f"user_{len(users_db) + 1}"
     user = {
-        "id": user_id,
+        "user_id": user_id,
         "username": request.username,
-        "email": request.email,
-        "display_name": request.display_name or request.username,
+        "created_at": datetime.now().isoformat(),
     }
     users_db[request.username] = user
 
