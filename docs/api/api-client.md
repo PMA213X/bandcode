@@ -2,188 +2,316 @@
 
 ## 概述
 
-API 客户端封装了与后端的所有 HTTP 通信，提供统一的接口调用方法。基于 Axios 库实现，支持请求拦截、响应拦截、错误处理等功能。
+API 客户端封装了所有与后端的 HTTP 通信，基于 Axios 实现，提供统一的接口调用方法。支持请求/响应拦截、错误处理、超时控制。
 
-## 使用方式
+## 基本信息
 
-### 基本用法
+- **基础 URL**: `http://localhost:8000`
+- **超时时间**: 30 秒
+- **请求格式**: JSON
 
-```tsx
-import { api } from "../services/api";
-
-// 创建用户
-const response = await api.createUser("user1", { theme: "dark" });
-console.log(response.data);
-
-// 获取聊天历史
-const history = await api.getChatHistory("session-123", 10, 0);
-console.log(history.data);
-```
-
-### 错误处理
-
-```tsx
-import { api } from "../services/api";
-import { ApiError } from "../services/errors";
-
-try {
-  await api.createUser("user1");
-} catch (error) {
-  if (error instanceof ApiError) {
-    console.error(`API 错误: ${error.message}, 状态码: ${error.code}`);
-  }
-}
-```
-
-## API 方法列表
+## 接口列表
 
 ### 用户管理
 
-| 方法 | 说明 | 参数 | 返回值 |
-|------|------|------|--------|
-| createUser | 创建新用户 | username: string, preferences?: object | ApiResponse\<CreateUserResponse\> |
+#### 创建用户
 
-### 聊天功能
+- **路径**: `POST /api/users/create`
+- **说明**: 创建新用户并返回用户信息
 
-| 方法 | 说明 | 参数 | 返回值 |
-|------|------|------|--------|
-| getChatHistory | 获取聊天历史 | sessionId: string, limit?: number, offset?: number | ApiResponse\<ChatHistoryResponse\> |
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| username | string | 是 | 用户名 |
+| preferences | object | 否 | 用户偏好设置 |
+
+**响应**:
+
+```json
+{
+  "code": 200,
+  "data": {
+    "id": "user-123",
+    "username": "testuser",
+    "createdAt": "2026-07-10T00:00:00Z"
+  },
+  "message": "成功"
+}
+```
+
+### 聊天管理
+
+#### 获取聊天历史
+
+- **路径**: `GET /api/chat/history`
+- **说明**: 获取指定会话的聊天历史记录
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| session_id | string | 是 | 会话 ID |
+| limit | number | 否 | 返回数量限制 |
+| offset | number | 否 | 偏移量 |
+
+**响应**:
+
+```json
+{
+  "code": 200,
+  "data": {
+    "messages": [
+      {
+        "id": "msg-1",
+        "role": "user",
+        "content": "你好",
+        "timestamp": "2026-07-10T00:00:00Z"
+      }
+    ],
+    "total": 10
+  },
+  "message": "成功"
+}
+```
 
 ### 设置管理
 
-| 方法 | 说明 | 参数 | 返回值 |
-|------|------|------|--------|
-| getSettings | 获取全部设置 | - | ApiResponse\<SettingsResponse\> |
-| updateSettings | 更新单个设置 | section: string, key: string, value: any | ApiResponse\<UpdateSettingsResponse\> |
-| reloadSettings | 重新加载设置文件 | - | ApiResponse\<null\> |
+#### 获取设置
+
+- **路径**: `GET /api/settings`
+- **说明**: 获取全部设置项
+
+**响应**:
+
+```json
+{
+  "code": 200,
+  "data": {
+    "模型设置": { "model": "gpt-4", "temperature": 0.7 },
+    "Agent 设置": { "maxAgents": 6 },
+    "Memory 设置": { "layers": ["global", "project", "task"] },
+    "Workflow 设置": { "timeout": 300 },
+    "RAG 设置": { "enabled": true },
+    "Tool 设置": { "allowedTools": ["read_file", "write_file"] }
+  },
+  "message": "成功"
+}
+```
+
+#### 更新设置
+
+- **路径**: `POST /api/settings`
+- **说明**: 更新单个设置项
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| section | string | 是 | 设置分类 |
+| key | string | 是 | 设置键名 |
+| value | any | 是 | 新的设置值 |
+
+**响应**:
+
+```json
+{
+  "code": 200,
+  "data": {
+    "previous": "gpt-4",
+    "current": "gpt-4-turbo"
+  },
+  "message": "成功"
+}
+```
+
+#### 重新加载设置
+
+- **路径**: `POST /api/settings/reload`
+- **说明**: 重新加载设置文件
 
 ### Memory 管理
 
-| 方法 | 说明 | 参数 | 返回值 |
-|------|------|------|--------|
-| getMemory | 获取指定层级的 Memory | project: string, layer: string | ApiResponse\<MemoryResponse\> |
-| searchMemory | 搜索 Memory 内容 | query: string, limit?: number | ApiResponse\<Array\<Record\<string, any\>\>\> |
+#### 获取 Memory
+
+- **路径**: `GET /api/memory`
+- **说明**: 获取指定层级的 Memory 内容
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| project | string | 是 | 项目名称 |
+| layer | string | 是 | Memory 层级 |
+
+**支持的层级**: global, project, task, session, checkpoint, notes
+
+**响应**:
+
+```json
+{
+  "code": 200,
+  "data": {
+    "content": "Memory 内容...",
+    "updatedAt": "2026-07-10T00:00:00Z"
+  },
+  "message": "成功"
+}
+```
+
+#### 搜索 Memory
+
+- **路径**: `GET /api/memory/search`
+- **说明**: 搜索 Memory 内容
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| query | string | 是 | 搜索关键词 |
+| limit | number | 否 | 返回数量限制 |
+
+**响应**:
+
+```json
+{
+  "code": 200,
+  "data": [
+    {
+      "layer": "project",
+      "content": "匹配的内容片段",
+      "score": 0.95
+    }
+  ],
+  "message": "成功"
+}
+```
 
 ### 工具管理
 
-| 方法 | 说明 | 参数 | 返回值 |
-|------|------|------|--------|
-| callTool | 调用后端工具 | tool: string, args: Record\<string, any\> | ApiResponse\<ToolCallResponse\> |
-| listTools | 获取所有可用工具 | - | ApiResponse\<Array\<Record\<string, any\>\>\> |
+#### 获取工具列表
+
+- **路径**: `GET /api/tools/list`
+- **说明**: 获取所有可用工具
+
+**响应**:
+
+```json
+{
+  "code": 200,
+  "data": [
+    {
+      "name": "read_file",
+      "description": "读取文件内容",
+      "parameters": {
+        "path": { "type": "string", "required": true }
+      }
+    }
+  ],
+  "message": "成功"
+}
+```
+
+#### 调用工具
+
+- **路径**: `POST /api/tools/call`
+- **说明**: 调用后端工具
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| tool | string | 是 | 工具名称 |
+| args | object | 是 | 工具参数 |
+
+**响应**:
+
+```json
+{
+  "code": 200,
+  "data": {
+    "result": "文件内容..."
+  },
+  "message": "成功"
+}
+```
 
 ### 项目管理
 
-| 方法 | 说明 | 参数 | 返回值 |
-|------|------|------|--------|
-| initProject | 初始化项目 | projectName: string, path: string, language?: string, framework?: string | ApiResponse\<ProjectInitResponse\> |
-| getProjectStatus | 获取项目状态 | - | ApiResponse\<Record\<string, any\>\> |
+#### 初始化项目
 
-## 配置项
+- **路径**: `POST /api/project/init`
+- **说明**: 初始化新项目
 
-### Axios 实例配置
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| project_name | string | 是 | 项目名称 |
+| path | string | 是 | 项目路径 |
+| language | string | 否 | 编程语言 |
+| framework | string | 否 | 框架 |
 
-| 配置 | 默认值 | 说明 |
-|------|--------|------|
-| baseURL | http://localhost:8000 | 后端 API 基础 URL |
-| timeout | 30000 | 请求超时时间（毫秒） |
-| Content-Type | application/json | 请求头内容类型 |
+**响应**:
 
-### 自定义配置
+```json
+{
+  "code": 200,
+  "data": {
+    "projectDir": ".mimo",
+    "structure": {
+      "agents": [],
+      "tools": [],
+      "memory": {}
+    }
+  },
+  "message": "成功"
+}
+```
 
-```tsx
-import { ApiClient } from "../services/api";
+#### 获取项目状态
 
-// 创建自定义配置的客户端
-const customApi = new ApiClient("https://api.example.com");
+- **路径**: `GET /api/project/status`
+- **说明**: 获取项目当前状态
+
+**响应**:
+
+```json
+{
+  "code": 200,
+  "data": {
+    "name": "my-project",
+    "version": "1.0.0",
+    "agents": ["constraint", "planner", "coder"],
+    "memoryLayers": ["global", "project"],
+    "tools": ["read_file", "write_file"]
+  },
+  "message": "成功"
+}
 ```
 
 ## 错误处理
 
-### ApiError 类
+| 错误码 | 说明 |
+|--------|------|
+| 400 | 请求参数错误 |
+| 401 | 未授权 |
+| 404 | 资源不存在 |
+| 500 | 服务器错误 |
 
-```tsx
-class ApiError extends Error {
-  code: number;      // HTTP 状态码
-  endpoint: string;  // 请求的端点路径
+错误响应格式:
+
+```json
+{
+  "code": 400,
+  "data": null,
+  "message": "参数错误: username 不能为空"
 }
 ```
 
-### 常见错误码
+## 使用示例
 
-| 错误码 | 说明 | 处理建议 |
-|--------|------|----------|
-| 400 | 请求参数错误 | 检查请求参数格式 |
-| 401 | 未授权 | 检查认证信息 |
-| 403 | 禁止访问 | 检查权限配置 |
-| 404 | 资源不存在 | 检查请求路径 |
-| 500 | 服务器错误 | 联系后端开发人员 |
+```typescript
+import { api } from "../services/api";
 
-## 拦截器
+// 创建用户
+const user = await api.createUser("testuser");
 
-### 请求拦截器
+// 获取聊天历史
+const history = await api.getChatHistory("session-123", 50);
 
-```tsx
-// 在请求发送前执行，可用于添加 token
-this.client.interceptors.request.use((config) => {
-  const token = getToken();
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
-  return config;
-});
+// 更新设置
+await api.updateSettings("模型设置", "model", "gpt-4-turbo");
+
+// 获取 Memory
+const memory = await api.getMemory("my-project", "project");
+
+// 调用工具
+const result = await api.callTool("read_file", { path: "README.md" });
 ```
-
-### 响应拦截器
-
-```tsx
-// 处理响应错误
-this.client.interceptors.response.use(
-  (response) => response,
-  (error) => {
-    const endpoint = error.config?.url || "unknown";
-    const code = error.response?.status || 0;
-    const message = error.response?.data?.message || error.message;
-    return Promise.reject(new ApiError(message, code, endpoint));
-  }
-);
-```
-
-## 示例
-
-### 获取设置并更新
-
-```tsx
-// 获取当前设置
-const settings = await api.getSettings();
-console.log(settings.data);
-
-// 更新模型设置
-await api.updateSettings("模型设置", "temperature", 0.7);
-```
-
-### 搜索 Memory
-
-```tsx
-// 搜索包含 "认证" 的 Memory
-const results = await api.searchMemory("认证", 5);
-results.data.forEach(result => {
-  console.log(result.content, result.score);
-});
-```
-
-### 调用工具
-
-```tsx
-// 调用 read_file 工具
-const result = await api.callTool("read_file", {
-  path: "/path/to/file.ts"
-});
-console.log(result.data);
-```
-
-## 注意事项
-
-- 所有 API 调用都是异步的，需要使用 async/await 或 .then() 处理
-- 错误会自动包装为 ApiError，包含状态码和端点信息
-- 请求超时默认 30 秒，可根据需要调整
-- 生产环境建议使用环境变量配置 baseURL

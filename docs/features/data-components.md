@@ -2,276 +2,138 @@
 
 ## 概述
 
-数据组件是前端数据层的可视化展示组件，用于显示 Agent 执行状态、Memory 内容和审批对话框。这些组件基于 Ink 框架实现，提供终端 UI 渲染能力。
+数据组件是前端数据层的核心 UI 组件，负责展示 Agent 执行状态、Memory 内容、审批对话框等动态数据。基于 React + Ink 构建，支持终端环境渲染。
 
 ## 组件列表
 
-### 1. AgentStatus 组件
+### AgentStatus
 
-显示单个 Agent 的运行状态，使用颜色和图标区分不同 Agent。
+Agent 状态显示组件，显示单个 Agent 的运行状态。
 
-#### 使用方式
+#### 属性
 
-```tsx
-import { AgentStatus } from "../components/AgentStatus";
+| 属性 | 类型 | 说明 |
+|------|------|------|
+| agent | string | Agent 名称 |
+| status | string | 状态描述 |
+| isActive | boolean | 是否为当前活跃 Agent |
 
-<AgentStatus
-  agent="planner"
-  status="正在规划任务..."
-  isActive={true}
-/>
-```
-
-#### 属性说明
-
-| 属性 | 类型 | 必填 | 说明 |
-|------|------|------|------|
-| agent | string | 是 | Agent 名称（如 planner、simple-coder） |
-| status | string | 是 | Agent 状态描述 |
-| isActive | boolean | 是 | 是否为当前活跃的 Agent |
-
-#### 颜色映射
+#### Agent 颜色映射
 
 | Agent | 颜色 | 中文标签 |
 |-------|------|----------|
-| constraint | 灰色 | 约束检索 |
-| planner | 蓝色 | 规划调度 |
-| simple-coder | 绿色 | 简单编码 |
-| complex-coder | 品红色 | 复杂编码 |
-| tester | 黄色 | 测试验证 |
-| review | 红色 | 约束审查 |
+| constraint | gray | 约束检索 |
+| planner | blue | 规划调度 |
+| simple-coder | green | 简单编码 |
+| complex-coder | magenta | 复杂编码 |
+| tester | yellow | 测试验证 |
+| review | red | 约束审查 |
 
-#### 状态图标
+#### 使用示例
 
-- 活跃状态：`⟳` (旋转图标)
-- 完成状态：`✓` (勾选图标)
+```typescript
+import { AgentStatus, AgentStatusList } from "../components/AgentStatus";
 
-### 2. AgentStatusList 组件
+// 单个 Agent 状态
+<AgentStatus
+  agent="planner"
+  status="正在分析任务..."
+  isActive={true}
+/>
 
-显示所有 Agent 的运行历史，去重后按顺序排列。
-
-#### 使用方式
-
-```tsx
-import { AgentStatusList } from "../components/AgentStatus";
-
-const events = [
-  { agent: "constraint", status: "检索约束...", data: {} },
-  { agent: "planner", status: "规划任务...", data: {} },
-  { agent: "simple-coder", status: "生成代码...", data: {} },
-];
-
+// Agent 状态列表
 <AgentStatusList
-  events={events}
-  currentAgent="simple-coder"
+  events={[
+    { agent: "constraint", status: "已完成约束检索" },
+    { agent: "planner", status: "正在规划任务" },
+  ]}
+  currentAgent="planner"
 />
 ```
 
-#### 属性说明
+### MemoryView
 
-| 属性 | 类型 | 必填 | 说明 |
-|------|------|------|------|
-| events | AgentStartEvent[] | 是 | Agent 启动事件列表 |
-| currentAgent | string | 否 | 当前活跃的 Agent 名称 |
+Memory 浏览组件，从后端加载并显示指定层级的 Memory 内容。
 
-#### 去重逻辑
+#### 属性
 
-- 使用 Set 记录已显示的 Agent
-- 同一个 Agent 只显示一次
-- 保持事件顺序
+| 属性 | 类型 | 说明 |
+|------|------|------|
+| project | string | 项目名称 |
+| layer | string | Memory 层级 |
 
-### 3. MemoryView 组件
+#### Memory 层级
 
-显示 Memory 内容，支持层级浏览和搜索。
+| 层级 | 中文标签 | 颜色 | 说明 |
+|------|----------|------|------|
+| global | 全局 | cyan | 编码偏好、通用规范 |
+| project | 项目 | blue | 架构决策、模块说明 |
+| task | 任务 | green | 单任务目标、进展 |
+| session | 会话 | yellow | 对话历史摘要 |
+| checkpoint | 快照 | magenta | 文件变更列表、快照摘要 |
+| notes | 备忘 | gray | TODO、临时记录 |
 
-#### 使用方式
+#### 使用示例
 
-```tsx
+```typescript
 import { MemoryView } from "../components/MemoryView";
 
-<MemoryView
-  project="my-project"
-  layer="global"
-/>
+// 显示项目 Memory
+<MemoryView project="my-project" layer="project" />
+
+// 显示全局 Memory
+<MemoryView project="my-project" layer="global" />
 ```
 
-#### 属性说明
+### ApprovalDialog
 
-| 属性 | 类型 | 必填 | 说明 |
-|------|------|------|------|
-| project | string | 是 | 项目名称 |
-| layer | string | 是 | Memory 层级（global/project/task/session/checkpoint/notes） |
+审批弹窗组件，用于 Agent 需要用户审批时显示。
 
-#### Memory 层级说明
+#### 属性
 
-| 层级 | 说明 |
-|------|------|
-| global | 全局 Memory，跨项目共享 |
-| project | 项目 Memory，当前项目专用 |
-| task | 任务 Memory，特定任务相关 |
-| session | 会话 Memory，当前会话专用 |
-| checkpoint | 检查点 Memory，会话状态快照 |
-| notes | 笔记 Memory，自由格式笔记 |
+| 属性 | 类型 | 说明 |
+|------|------|------|
+| approvalId | string | 审批 ID |
+| description | string | 审批描述 |
+| onApprove | (id: string) => void | 同意回调 |
+| onReject | (id: string) => void | 拒绝回调 |
 
-### 4. ApprovalDialog 组件
+#### 使用示例
 
-审批对话框，用于处理需要用户确认的操作。
-
-#### 使用方式
-
-```tsx
+```typescript
 import { ApprovalDialog } from "../components/ApprovalDialog";
 
 <ApprovalDialog
-  action="删除文件"
-  details="确定要删除 /path/to/file.ts 吗？"
-  onApprove={() => console.log("已批准")}
-  onReject={() => console.log("已拒绝")}
+  approvalId="approval-123"
+  description="Agent 请求执行文件写入操作"
+  onApprove={(id) => console.log("同意:", id)}
+  onReject={(id) => console.log("拒绝:", id)}
 />
 ```
 
-#### 属性说明
+## 组件依赖关系
 
-| 属性 | 类型 | 必填 | 说明 |
-|------|------|------|------|
-| action | string | 是 | 需要审批的操作名称 |
-| details | string | 是 | 操作详细说明 |
-| onApprove | () => void | 是 | 批准回调函数 |
-| onReject | () => void | 是 | 拒绝回调函数 |
-
-## 类型定义
-
-### AgentStartEvent
-
-```tsx
-interface AgentStartEvent {
-  agent: string;    // Agent 名称
-  status: string;   // 状态描述
-  data: object;     // 事件数据
-}
+```
+Chat.tsx
+├── AgentStatusList
+│   └── AgentStatus
+├── MemoryView
+├── ApprovalDialog
+└── useSSE (Hook)
+    └── SSE 事件流
 ```
 
-### SSEEvent
+## 数据流向
 
-```tsx
-interface SSEEvent {
-  type: SSEEventType;  // 事件类型
-  data: SSEEventData;  // 事件数据
-}
-```
-
-### SSEEventType
-
-```tsx
-type SSEEventType =
-  | "agent_start"
-  | "constraint_result"
-  | "plan"
-  | "approval_required"
-  | "tool_call"
-  | "code"
-  | "test_result"
-  | "review_result"
-  | "memory_update"
-  | "done"
-  | "error";
-```
-
-## 样式定制
-
-### 颜色配置
-
-组件使用 Ink 的 Text 组件进行颜色渲染，支持以下颜色：
-
-- 基础颜色：black, red, green, yellow, blue, magenta, cyan, white
-- 灰度颜色：gray
-- 亮色变体：redBright, greenBright, yellowBright, blueBright, magentaBright, cyanBright, whiteBright
-
-### 布局配置
-
-组件使用 Ink 的 Box 组件进行布局，支持以下属性：
-
-- flexDirection: "row" | "column"
-- justifyContent: "flex-start" | "flex-end" | "center"
-- alignItems: "flex-start" | "flex-end" | "center"
-- padding: number
-- margin: number
-
-## 示例
-
-### 完整的 Agent 状态展示
-
-```tsx
-import { useSSE } from "../hooks/useSSE";
-import { AgentStatusList } from "../components/AgentStatus";
-
-function AgentStatusPanel() {
-  const { events } = useSSE({
-    sessionId: "session-123",
-    project: "my-project",
-    message: "用户消息",
-  });
-
-  // 过滤 Agent 启动事件
-  const agentEvents = events
-    .filter(e => e.type === "agent_start")
-    .map(e => e.data as AgentStartEvent);
-
-  // 获取当前活跃 Agent
-  const currentAgent = agentEvents[agentEvents.length - 1]?.agent;
-
-  return (
-    <AgentStatusList
-      events={agentEvents}
-      currentAgent={currentAgent}
-    />
-  );
-}
-```
-
-### 审批流程处理
-
-```tsx
-import { useSSE } from "../hooks/useSSE";
-import { ApprovalDialog } from "../components/ApprovalDialog";
-
-function ApprovalHandler() {
-  const [approval, setApproval] = useState(null);
-
-  const { events } = useSSE({
-    sessionId: "session-123",
-    project: "my-project",
-    message: "用户消息",
-    onEvent: (event) => {
-      if (event.type === "approval_required") {
-        setApproval(event.data);
-      }
-    },
-  });
-
-  if (!approval) return null;
-
-  return (
-    <ApprovalDialog
-      action={approval.action}
-      details={approval.details}
-      onApprove={() => {
-        // 发送批准响应
-        setApproval(null);
-      }}
-      onReject={() => {
-        // 发送拒绝响应
-        setApproval(null);
-      }}
-    />
-  );
-}
-```
+1. **用户输入** → Chat.tsx 接收用户消息
+2. **SSE 连接** → useSSE Hook 建立连接
+3. **事件接收** → 实时接收 Agent 执行事件
+4. **状态更新** → 更新组件状态
+5. **UI 渲染** → AgentStatus/MemoryView/ApprovalDialog 显示
 
 ## 注意事项
 
-- 组件基于 Ink 框架，仅支持终端 UI 渲染
-- 颜色显示依赖终端支持
-- 大量事件可能影响性能，建议使用虚拟列表
-- 组件不处理数据获取，需配合 Hook 使用
-- 审批对话框需要用户交互，确保在交互式环境中使用
+- 组件使用 Ink 库，支持终端环境渲染
+- MemoryView 使用 `cancelled` 标记防止组件卸载后的状态更新
+- AgentStatus 使用 Set 去重，避免重复显示
+- ApprovalDialog 需要用户交互，会阻塞 Agent 执行
