@@ -54,3 +54,7 @@ logs/
 .coverage
 htmlcov/
 .pytest_cache/
+test_connection.py
+
+# === MiMoCode ===
+.mimocode/
