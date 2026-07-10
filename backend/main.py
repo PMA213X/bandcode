@@ -5,6 +5,7 @@ FastAPI 应用框架搭建
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from api.errors import register_error_handlers
+from api.middleware import RequestLoggingMiddleware, SecurityHeadersMiddleware
 from config.logging import setup_logging, get_logger
 
 # 设置日志
@@ -26,6 +27,10 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# 添加自定义中间件
+app.add_middleware(SecurityHeadersMiddleware)
+app.add_middleware(RequestLoggingMiddleware)
 
 # 注册全局异常处理
 register_error_handlers(app)
