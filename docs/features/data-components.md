@@ -2,23 +2,13 @@
 
 ## 概述
 
-数据组件是 BandCode 前端的数据层组件，负责与后端 API 交互、管理 SSE 连接、显示 Agent 状态和 Memory 内容。这些组件提供了数据获取、状态管理、实时更新等核心功能。
+数据组件是前端数据层的核心 UI 组件，负责展示 Agent 执行状态、Memory 内容、审批对话框等动态数据。基于 React + Ink 构建，支持终端环境渲染。
 
 ## 组件列表
 
-### 1. AgentStatus 组件
+### AgentStatus
 
-显示 Agent 的运行状态，支持颜色区分和状态图标。
-
-```typescript
-import { AgentStatus, AgentStatusList } from "../components/AgentStatus";
-
-// 单个 Agent 状态
-<AgentStatus agent="planner" status="分析需求..." isActive={true} />
-
-// Agent 状态列表
-<AgentStatusList events={agentEvents} currentAgent="planner" />
-```
+Agent 状态显示组件，显示单个 Agent 的运行状态。
 
 #### 属性
 
@@ -26,28 +16,44 @@ import { AgentStatus, AgentStatusList } from "../components/AgentStatus";
 |------|------|------|
 | agent | string | Agent 名称 |
 | status | string | 状态描述 |
-| isActive | boolean | 是否活跃 |
+| isActive | boolean | 是否为当前活跃 Agent |
 
 #### Agent 颜色映射
 
 | Agent | 颜色 | 中文标签 |
 |-------|------|----------|
-| constraint | 灰色 | 约束检索 |
-| planner | 蓝色 | 规划调度 |
-| simple-coder | 绿色 | 简单编码 |
-| complex-coder | 品红色 | 复杂编码 |
-| tester | 黄色 | 测试验证 |
-| review | 红色 | 约束审查 |
+| constraint | gray | 约束检索 |
+| planner | blue | 规划调度 |
+| simple-coder | green | 简单编码 |
+| complex-coder | magenta | 复杂编码 |
+| tester | yellow | 测试验证 |
+| review | red | 约束审查 |
 
-### 2. MemoryView 组件
-
-显示指定层级的 Memory 内容，支持加载状态和错误处理。
+#### 使用示例
 
 ```typescript
-import { MemoryView } from "../components/MemoryView";
+import { AgentStatus, AgentStatusList } from "../components/AgentStatus";
 
-<MemoryView project="my-project" layer="project" />
+// 单个 Agent 状态
+<AgentStatus
+  agent="planner"
+  status="正在分析任务..."
+  isActive={true}
+/>
+
+// Agent 状态列表
+<AgentStatusList
+  events={[
+    { agent: "constraint", status: "已完成约束检索" },
+    { agent: "planner", status: "正在规划任务" },
+  ]}
+  currentAgent="planner"
+/>
 ```
+
+### MemoryView
+
+Memory 浏览组件，从后端加载并显示指定层级的 Memory 内容。
 
 #### 属性
 
@@ -58,172 +64,76 @@ import { MemoryView } from "../components/MemoryView";
 
 #### Memory 层级
 
-| 层级 | 颜色 | 中文标签 | 说明 |
-|------|------|----------|------|
-| global | 青色 | 全局 | 编码偏好、通用规范 |
-| project | 蓝色 | 项目 | 架构决策、模块说明 |
-| task | 绿色 | 任务 | 单任务目标、进展 |
-| session | 黄色 | 会话 | 对话历史摘要 |
-| checkpoint | 品红色 | 快照 | 文件变更列表 |
-| notes | 灰色 | 备忘 | TODO、临时记录 |
+| 层级 | 中文标签 | 颜色 | 说明 |
+|------|----------|------|------|
+| global | 全局 | cyan | 编码偏好、通用规范 |
+| project | 项目 | blue | 架构决策、模块说明 |
+| task | 任务 | green | 单任务目标、进展 |
+| session | 会话 | yellow | 对话历史摘要 |
+| checkpoint | 快照 | magenta | 文件变更列表、快照摘要 |
+| notes | 备忘 | gray | TODO、临时记录 |
 
-### 3. ApprovalDialog 组件
-
-审批确认弹窗，支持键盘快捷操作。
+#### 使用示例
 
 ```typescript
-import { ApprovalDialog } from "../components/ApprovalDialog";
+import { MemoryView } from "../components/MemoryView";
 
-<ApprovalDialog
-  plan="实现用户登录 API"
-  agent="complex-coder"
-  reason="涉及 API 开发"
-  onApprove={() => console.log("批准")}
-  onReject={() => console.log("拒绝")}
-/>
+// 显示项目 Memory
+<MemoryView project="my-project" layer="project" />
+
+// 显示全局 Memory
+<MemoryView project="my-project" layer="global" />
 ```
+
+### ApprovalDialog
+
+审批弹窗组件，用于 Agent 需要用户审批时显示。
 
 #### 属性
 
 | 属性 | 类型 | 说明 |
 |------|------|------|
-| plan | string | 执行计划 |
-| agent | string | Agent 名称 |
-| reason | string | 审批原因 |
-| onApprove | function | 批准回调 |
-| onReject | function | 拒绝回调 |
+| approvalId | string | 审批 ID |
+| description | string | 审批描述 |
+| onApprove | (id: string) => void | 同意回调 |
+| onReject | (id: string) => void | 拒绝回调 |
 
-#### 键盘快捷键
-
-| 按键 | 操作 |
-|------|------|
-| Y | 批准 |
-| N | 拒绝 |
-
-## Hooks
-
-### 1. useSSE Hook
-
-SSE 连接管理 Hook，详见 [SSE 消费文档](./sse-consumer.md)。
-
-### 2. useChatStore Hook
-
-聊天状态管理 Hook，集中管理聊天会话的状态。
+#### 使用示例
 
 ```typescript
-import { useChatStore } from "../hooks/useChatStore";
+import { ApprovalDialog } from "../components/ApprovalDialog";
 
-const {
-  state,
-  agentEvents,
-  handleEvent,
-  setConnected,
-  setReconnecting,
-  setError,
-  reset,
-} = useChatStore(sessionId, project);
+<ApprovalDialog
+  approvalId="approval-123"
+  description="Agent 请求执行文件写入操作"
+  onApprove={(id) => console.log("同意:", id)}
+  onReject={(id) => console.log("拒绝:", id)}
+/>
 ```
 
-#### 返回值
-
-| 属性/方法 | 类型 | 说明 |
-|-----------|------|------|
-| state | ChatState | 当前状态 |
-| agentEvents | AgentStartEvent[] | Agent 启动事件列表 |
-| handleEvent | function | 事件处理函数 |
-| setConnected | function | 设置连接状态 |
-| setReconnecting | function | 设置重连状态 |
-| setError | function | 设置错误 |
-| reset | function | 重置状态 |
-
-### 3. useChatSession Hook
-
-聊天会话管理 Hook，整合 SSE 连接、状态管理、审批处理。
-
-```typescript
-import { useChatSession } from "../hooks/useChatSession";
-
-const {
-  state,
-  agentEvents,
-  pendingApproval,
-  sendMessage,
-  approveAction,
-  rejectAction,
-  reset,
-} = useChatSession({ sessionId, project });
-```
-
-#### 返回值
-
-| 属性/方法 | 类型 | 说明 |
-|-----------|------|------|
-| state | ChatState | 聊天状态 |
-| agentEvents | AgentStartEvent[] | Agent 事件列表 |
-| pendingApproval | ApprovalRequiredEvent \| null | 待审批事件 |
-| sendMessage | function | 发送消息 |
-| approveAction | function | 批准操作 |
-| rejectAction | function | 拒绝操作 |
-| reset | function | 重置状态 |
-
-## 工具函数
-
-### 事件类型守卫
-
-使用类型守卫函数安全地处理不同类型的事件：
-
-```typescript
-import {
-  isAgentStart,
-  isConstraintResult,
-  isPlan,
-  isApprovalRequired,
-  isToolCall,
-  isCode,
-  isTestResult,
-  isReviewResult,
-  isMemoryUpdate,
-  isDone,
-  isError,
-  getEventLabel,
-} from "../utils/eventGuards";
-
-// 使用示例
-if (isAgentStart(event)) {
-  console.log("Agent:", event.data.agent);
-}
-
-// 获取事件中文标签
-const label = getEventLabel("agent_start"); // "Agent 启动"
-```
-
-## 数据流
+## 组件依赖关系
 
 ```
-用户输入 → useChatSession.sendMessage()
-    ↓
-SSE 连接 → useSSE Hook
-    ↓
-事件接收 → useChatStore.handleEvent()
-    ↓
-状态更新 → React 组件重新渲染
-    ↓
-UI 显示 → AgentStatus / MemoryView / ApprovalDialog
+Chat.tsx
+├── AgentStatusList
+│   └── AgentStatus
+├── MemoryView
+├── ApprovalDialog
+└── useSSE (Hook)
+    └── SSE 事件流
 ```
+
+## 数据流向
+
+1. **用户输入** → Chat.tsx 接收用户消息
+2. **SSE 连接** → useSSE Hook 建立连接
+3. **事件接收** → 实时接收 Agent 执行事件
+4. **状态更新** → 更新组件状态
+5. **UI 渲染** → AgentStatus/MemoryView/ApprovalDialog 显示
 
 ## 注意事项
 
-- 组件使用 Ink 框架渲染，适用于 CLI 界面
-- SSE 连接支持自动重连，最大重试 3 次
-- 事件类型守卫提供类型安全的事件处理
-- 状态管理使用 React Hooks，支持并发模式
-
-## 相关文件
-
-- `frontend/src/components/AgentStatus.tsx` — Agent 状态组件
-- `frontend/src/components/MemoryView.tsx` — Memory 浏览组件
-- `frontend/src/components/ApprovalDialog.tsx` — 审批弹窗组件
-- `frontend/src/hooks/useSSE.ts` — SSE Hook
-- `frontend/src/hooks/useChatStore.ts` — 聊天状态 Hook
-- `frontend/src/hooks/useChatSession.ts` — 聊天会话 Hook
-- `frontend/src/utils/eventGuards.ts` — 事件类型守卫
+- 组件使用 Ink 库，支持终端环境渲染
+- MemoryView 使用 `cancelled` 标记防止组件卸载后的状态更新
+- AgentStatus 使用 Set 去重，避免重复显示
+- ApprovalDialog 需要用户交互，会阻塞 Agent 执行

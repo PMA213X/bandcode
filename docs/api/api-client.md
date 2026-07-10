@@ -2,176 +2,316 @@
 
 ## 概述
 
-API 客户端模块封装了与后端的所有 HTTP 通信，提供统一的接口调用方法。基于 Axios 实现，支持请求拦截、响应拦截、错误处理等特性。
+API 客户端封装了所有与后端的 HTTP 通信，基于 Axios 实现，提供统一的接口调用方法。支持请求/响应拦截、错误处理、超时控制。
 
-## 使用方式
+## 基本信息
 
-### 基本使用
-
-```typescript
-import { api } from "../services/api";
-
-// 创建用户
-const user = await api.createUser("developer_01", { language: "zh-CN" });
-
-// 获取聊天历史
-const history = await api.getChatHistory("session-123", 50, 0);
-
-// 获取设置
-const settings = await api.getSettings();
-
-// 更新设置
-await api.updateSettings("模型设置", "默认模型", "xiaomi/mimo-v2.5-pro");
-
-// 获取 Memory
-const memory = await api.getMemory("my-project", "project");
-
-// 调用工具
-const result = await api.callTool("read_file", { path: "src/main.py" });
-
-// 初始化项目
-await api.initProject("my-project", "/path/to/project", "python", "fastapi");
-
-// 获取项目状态
-const status = await api.getProjectStatus();
-
-// 获取工具列表
-const tools = await api.listTools();
-
-// 搜索 Memory
-const searchResults = await api.searchMemory("用户认证", 10);
-
-// 重新加载设置
-await api.reloadSettings();
-```
+- **基础 URL**: `http://localhost:8000`
+- **超时时间**: 30 秒
+- **请求格式**: JSON
 
 ## 接口列表
 
-### 用户相关
+### 用户管理
 
-| 方法 | 路径 | 说明 |
-|------|------|------|
-| createUser | POST /api/users/create | 创建用户 |
+#### 创建用户
 
-### 聊天相关
+- **路径**: `POST /api/users/create`
+- **说明**: 创建新用户并返回用户信息
 
-| 方法 | 路径 | 说明 |
-|------|------|------|
-| getChatHistory | GET /api/chat/history | 获取聊天历史 |
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| username | string | 是 | 用户名 |
+| preferences | object | 否 | 用户偏好设置 |
 
-### 设置相关
+**响应**:
 
-| 方法 | 路径 | 说明 |
-|------|------|------|
-| getSettings | GET /api/settings | 获取全部设置 |
-| updateSettings | POST /api/settings | 更新设置 |
-| reloadSettings | POST /api/settings/reload | 重新加载设置 |
+```json
+{
+  "code": 200,
+  "data": {
+    "id": "user-123",
+    "username": "testuser",
+    "createdAt": "2026-07-10T00:00:00Z"
+  },
+  "message": "成功"
+}
+```
 
-### Memory 相关
+### 聊天管理
 
-| 方法 | 路径 | 说明 |
-|------|------|------|
-| getMemory | GET /api/memory | 获取 Memory 内容 |
-| searchMemory | GET /api/memory/search | 搜索 Memory |
+#### 获取聊天历史
 
-### 项目相关
+- **路径**: `GET /api/chat/history`
+- **说明**: 获取指定会话的聊天历史记录
 
-| 方法 | 路径 | 说明 |
-|------|------|------|
-| initProject | POST /api/project/init | 初始化项目 |
-| getProjectStatus | GET /api/project/status | 获取项目状态 |
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| session_id | string | 是 | 会话 ID |
+| limit | number | 否 | 返回数量限制 |
+| offset | number | 否 | 偏移量 |
 
-### 工具相关
+**响应**:
 
-| 方法 | 路径 | 说明 |
-|------|------|------|
-| callTool | POST /api/tools/call | 调用工具 |
-| listTools | GET /api/tools/list | 获取工具列表 |
+```json
+{
+  "code": 200,
+  "data": {
+    "messages": [
+      {
+        "id": "msg-1",
+        "role": "user",
+        "content": "你好",
+        "timestamp": "2026-07-10T00:00:00Z"
+      }
+    ],
+    "total": 10
+  },
+  "message": "成功"
+}
+```
 
-## 统一响应格式
+### 设置管理
 
-所有接口返回统一的响应格式：
+#### 获取设置
 
-```typescript
-interface ApiResponse<T> {
-  code: number;    // 状态码：0 表示成功
-  data: T;         // 响应数据
-  message: string; // 响应消息
+- **路径**: `GET /api/settings`
+- **说明**: 获取全部设置项
+
+**响应**:
+
+```json
+{
+  "code": 200,
+  "data": {
+    "模型设置": { "model": "gpt-4", "temperature": 0.7 },
+    "Agent 设置": { "maxAgents": 6 },
+    "Memory 设置": { "layers": ["global", "project", "task"] },
+    "Workflow 设置": { "timeout": 300 },
+    "RAG 设置": { "enabled": true },
+    "Tool 设置": { "allowedTools": ["read_file", "write_file"] }
+  },
+  "message": "成功"
+}
+```
+
+#### 更新设置
+
+- **路径**: `POST /api/settings`
+- **说明**: 更新单个设置项
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| section | string | 是 | 设置分类 |
+| key | string | 是 | 设置键名 |
+| value | any | 是 | 新的设置值 |
+
+**响应**:
+
+```json
+{
+  "code": 200,
+  "data": {
+    "previous": "gpt-4",
+    "current": "gpt-4-turbo"
+  },
+  "message": "成功"
+}
+```
+
+#### 重新加载设置
+
+- **路径**: `POST /api/settings/reload`
+- **说明**: 重新加载设置文件
+
+### Memory 管理
+
+#### 获取 Memory
+
+- **路径**: `GET /api/memory`
+- **说明**: 获取指定层级的 Memory 内容
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| project | string | 是 | 项目名称 |
+| layer | string | 是 | Memory 层级 |
+
+**支持的层级**: global, project, task, session, checkpoint, notes
+
+**响应**:
+
+```json
+{
+  "code": 200,
+  "data": {
+    "content": "Memory 内容...",
+    "updatedAt": "2026-07-10T00:00:00Z"
+  },
+  "message": "成功"
+}
+```
+
+#### 搜索 Memory
+
+- **路径**: `GET /api/memory/search`
+- **说明**: 搜索 Memory 内容
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| query | string | 是 | 搜索关键词 |
+| limit | number | 否 | 返回数量限制 |
+
+**响应**:
+
+```json
+{
+  "code": 200,
+  "data": [
+    {
+      "layer": "project",
+      "content": "匹配的内容片段",
+      "score": 0.95
+    }
+  ],
+  "message": "成功"
+}
+```
+
+### 工具管理
+
+#### 获取工具列表
+
+- **路径**: `GET /api/tools/list`
+- **说明**: 获取所有可用工具
+
+**响应**:
+
+```json
+{
+  "code": 200,
+  "data": [
+    {
+      "name": "read_file",
+      "description": "读取文件内容",
+      "parameters": {
+        "path": { "type": "string", "required": true }
+      }
+    }
+  ],
+  "message": "成功"
+}
+```
+
+#### 调用工具
+
+- **路径**: `POST /api/tools/call`
+- **说明**: 调用后端工具
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| tool | string | 是 | 工具名称 |
+| args | object | 是 | 工具参数 |
+
+**响应**:
+
+```json
+{
+  "code": 200,
+  "data": {
+    "result": "文件内容..."
+  },
+  "message": "成功"
+}
+```
+
+### 项目管理
+
+#### 初始化项目
+
+- **路径**: `POST /api/project/init`
+- **说明**: 初始化新项目
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| project_name | string | 是 | 项目名称 |
+| path | string | 是 | 项目路径 |
+| language | string | 否 | 编程语言 |
+| framework | string | 否 | 框架 |
+
+**响应**:
+
+```json
+{
+  "code": 200,
+  "data": {
+    "projectDir": ".mimo",
+    "structure": {
+      "agents": [],
+      "tools": [],
+      "memory": {}
+    }
+  },
+  "message": "成功"
+}
+```
+
+#### 获取项目状态
+
+- **路径**: `GET /api/project/status`
+- **说明**: 获取项目当前状态
+
+**响应**:
+
+```json
+{
+  "code": 200,
+  "data": {
+    "name": "my-project",
+    "version": "1.0.0",
+    "agents": ["constraint", "planner", "coder"],
+    "memoryLayers": ["global", "project"],
+    "tools": ["read_file", "write_file"]
+  },
+  "message": "成功"
 }
 ```
 
 ## 错误处理
 
-API 客户端使用自定义的 `ApiError` 类处理错误：
+| 错误码 | 说明 |
+|--------|------|
+| 400 | 请求参数错误 |
+| 401 | 未授权 |
+| 404 | 资源不存在 |
+| 500 | 服务器错误 |
 
-```typescript
-import { ApiError } from "../services/errors";
+错误响应格式:
 
-try {
-  await api.createUser("existing_user");
-} catch (error) {
-  if (error instanceof ApiError) {
-    console.error(`API 错误: ${error.message}`);
-    console.error(`状态码: ${error.code}`);
-    console.error(`端点: ${error.endpoint}`);
-  }
+```json
+{
+  "code": 400,
+  "data": null,
+  "message": "参数错误: username 不能为空"
 }
 ```
 
-### 错误类型
-
-| 错误类 | 说明 |
-|--------|------|
-| ApiError | API 调用错误，包含状态码和端点信息 |
-| SSEConnectionError | SSE 连接错误，包含会话 ID |
-
-## 配置项
-
-| 配置 | 默认值 | 说明 |
-|------|--------|------|
-| baseURL | http://localhost:8000 | 后端 API 基础 URL |
-| timeout | 30000 | 请求超时时间（毫秒） |
-| headers | Content-Type: application/json | 默认请求头 |
-
-## 拦截器
-
-### 请求拦截器
-
-在每个请求发送前执行，可用于添加认证 token：
+## 使用示例
 
 ```typescript
-this.client.interceptors.request.use((config) => {
-  // 添加 token
-  config.headers.Authorization = `Bearer ${token}`;
-  return config;
-});
+import { api } from "../services/api";
+
+// 创建用户
+const user = await api.createUser("testuser");
+
+// 获取聊天历史
+const history = await api.getChatHistory("session-123", 50);
+
+// 更新设置
+await api.updateSettings("模型设置", "model", "gpt-4-turbo");
+
+// 获取 Memory
+const memory = await api.getMemory("my-project", "project");
+
+// 调用工具
+const result = await api.callTool("read_file", { path: "README.md" });
 ```
-
-### 响应拦截器
-
-处理响应错误，统一包装为 `ApiError`：
-
-```typescript
-this.client.interceptors.response.use(
-  (response) => response,
-  (error) => {
-    const endpoint = error.config?.url || "unknown";
-    const code = error.response?.status || 0;
-    const message = error.response?.data?.message || error.message;
-    return Promise.reject(new ApiError(message, code, endpoint));
-  }
-);
-```
-
-## 注意事项
-
-- 所有接口返回 Promise，支持 async/await
-- 错误会自动包装为 ApiError，便于统一处理
-- 超时时间默认 30 秒，可根据需要调整
-- 请求头默认使用 JSON 格式
-
-## 相关文件
-
-- `frontend/src/services/api.ts` — API 客户端实现
-- `frontend/src/services/errors.ts` — 错误类定义
-- `frontend/src/types/api.ts` — 类型定义
