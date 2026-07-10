@@ -76,6 +76,22 @@ class ApiClient {
   async initProject(projectName: string, path: string, language?: string, framework?: string): Promise<ApiResponse<ProjectInitResponse>> {
     return this.post("/api/project/init", { project_name: projectName, path, language, framework } as ProjectInitRequest);
   }
+
+  async getProjectStatus(): Promise<ApiResponse<Record<string, any>>> {
+    return this.get("/api/project/status");
+  }
+
+  async listTools(): Promise<ApiResponse<Array<Record<string, any>>>> {
+    return this.get("/api/tools/list");
+  }
+
+  async searchMemory(query: string, limit?: number): Promise<ApiResponse<Array<Record<string, any>>>> {
+    return this.get("/api/memory/search", { query, limit });
+  }
+
+  async reloadSettings(): Promise<ApiResponse<null>> {
+    return this.post("/api/settings/reload");
+  }
 }
 
 export const api = new ApiClient();
