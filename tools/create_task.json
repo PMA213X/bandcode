@@ -1,0 +1,19 @@
+{
+  "name": "create_task",
+  "description": "创建新任务",
+  "permission": "todowrite",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "title": {
+        "type": "string",
+        "description": "任务标题"
+      },
+      "description": {
+        "type": "string",
+        "description": "任务描述"
+      }
+    },
+    "required": ["title"]
+  }
+}
