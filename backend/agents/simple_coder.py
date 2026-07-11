@@ -6,10 +6,14 @@ SimpleCoder Agent - 简单编码智能体
 2. 配置调整：配置文件参数修改
 3. 单文件修改：单个文件内的代码变更
 4. 小型Bug修复：简单的逻辑修复、拼写错误等
+
+作者：成员C（wang123456-123456）
 """
 
-# 导入数据类
-from dataclasses import dataclass, field
+# 导入JSON解析
+import json
+# 导入正则表达式
+import re
 # 导入类型提示
 from typing import Optional
 
@@ -70,17 +74,20 @@ class SimpleCoderAgent(BaseAgent):
         try:
             # 1. 分析任务
             task_analysis = await self._analyze_task(state)
+            self.logger.info(f"任务分析完成: {task_analysis.get('type', 'N/A')}")
 
-            # 2. 生成代码
-            code = await self._generate_code(task_analysis, state)
-
-            # 3. 检查是否需要升级
+            # 2. 检查是否需要升级
             if self._should_upgrade(task_analysis):
                 # 升级到ComplexCoder
                 state.plan["delegated_agent"] = "complex-coder"
                 state.plan["reason"] = "任务复杂度超出SimpleCoder处理能力"
+                self.logger.info("任务升级到ComplexCoder")
                 self.report_status("upgraded", {"reason": "任务升级"})
                 return state
+
+            # 3. 生成代码
+            code = await self._generate_code(task_analysis, state)
+            self.logger.info(f"代码生成完成, 长度: {len(code)}")
 
             # 4. 应用代码变更
             changes = await self._apply_changes(code, state)
@@ -99,9 +106,45 @@ class SimpleCoderAgent(BaseAgent):
 
         except Exception as e:
             # 上报错误
+            self.logger.error(f"编码任务失败: {e}")
             state.error = str(e)
             self.report_status("failed", {"error": str(e)})
             return state
+
+    def _extract_json(self, text: str) -> dict:
+        """
+        从LLM响应中提取JSON
+
+        Args:
+            text: LLM响应文本
+
+        Returns:
+            解析后的JSON字典
+        """
+        # 尝试直接解析
+        try:
+            return json.loads(text)
+        except json.JSONDecodeError:
+            pass
+
+        # 尝试提取```json ... ```格式
+        json_match = re.search(r'```json\s*(.*?)\s*```', text, re.DOTALL)
+        if json_match:
+            try:
+                return json.loads(json_match.group(1))
+            except json.JSONDecodeError:
+                pass
+
+        # 尝试提取{ ... }格式
+        json_match = re.search(r'\{.*\}', text, re.DOTALL)
+        if json_match:
+            try:
+                return json.loads(json_match.group(0))
+            except json.JSONDecodeError:
+                pass
+
+        # 解析失败返回默认值
+        return {}
 
     async def _analyze_task(self, state: PipelineState) -> dict:
         """
@@ -122,11 +165,12 @@ class SimpleCoderAgent(BaseAgent):
 2. 修改的类型（UI/配置/逻辑）
 3. 预估代码行数
 
-输出格式：
+输出格式（JSON）：
 {
     "files": ["文件路径列表"],
     "type": "ui|config|logic",
-    "estimated_lines": 100
+    "estimated_lines": 100,
+    "complexity": "low|medium|high"
 }"""
             },
             {
@@ -135,7 +179,7 @@ class SimpleCoderAgent(BaseAgent):
 {state.user_input}
 
 计划：
-{state.plan}
+{json.dumps(state.plan, ensure_ascii=False, indent=2) if state.plan else "无"}
 
 请分析任务："""
             }
@@ -144,12 +188,17 @@ class SimpleCoderAgent(BaseAgent):
         # 调用LLM
         response = await self.call_llm(messages, temperature=0.2)
 
-        # 解析响应（简化处理）
-        analysis = {
-            "files": [],
-            "type": "logic",
-            "estimated_lines": 100
-        }
+        # 解析响应
+        analysis = self._extract_json(response)
+
+        # 设置默认值
+        if not analysis:
+            analysis = {
+                "files": [],
+                "type": "logic",
+                "estimated_lines": 100,
+                "complexity": "low"
+            }
 
         return analysis
 
@@ -173,12 +222,13 @@ class SimpleCoderAgent(BaseAgent):
 要求：
 1. 输出完整代码
 2. 遵循项目约束
-3. 代码简洁清晰"""
+3. 代码简洁清晰
+4. 添加必要的注释"""
             },
             {
                 "role": "user",
                 "content": f"""任务分析：
-{analysis}
+{json.dumps(analysis, ensure_ascii=False, indent=2)}
 
 约束：
 {state.constraint_summary}
@@ -207,6 +257,10 @@ class SimpleCoderAgent(BaseAgent):
 
         # 检查代码行数
         if analysis.get("estimated_lines", 0) > self.max_lines:
+            return True
+
+        # 检查复杂度
+        if analysis.get("complexity") == "high":
             return True
 
         return False

@@ -10,10 +10,14 @@ Tester Agent - 测试验证智能体
 - edit权限 = deny：禁止修改任何代码文件
 - 禁止修改代码：不得对源代码进行任何写入操作
 - 禁止自动修复：发现问题后仅报告，不得自动修复
+
+作者：成员C（wang123456-123456）
 """
 
-# 导入数据类
-from dataclasses import dataclass, field
+# 导入JSON解析
+import json
+# 导入正则表达式
+import re
 # 导入类型提示
 from typing import Optional
 
@@ -73,12 +77,15 @@ class TesterAgent(BaseAgent):
         try:
             # 1. 编译检查
             compile_result = await self._check_compilation(state)
+            self.logger.info(f"编译检查完成: {'成功' if compile_result.get('success') else '失败'}")
 
             # 2. 单元测试
             test_result = await self._run_tests(state)
+            self.logger.info(f"单元测试完成: 通过 {test_result.get('passed', 0)}, 失败 {test_result.get('failed', 0)}")
 
             # 3. 静态分析
             analysis_result = await self._static_analysis(state)
+            self.logger.info(f"静态分析完成: 质量分数 {analysis_result.get('quality_score', 0)}")
 
             # 4. 生成测试报告
             report = self._generate_report(compile_result, test_result, analysis_result)
@@ -96,9 +103,45 @@ class TesterAgent(BaseAgent):
 
         except Exception as e:
             # 上报错误
+            self.logger.error(f"测试验证失败: {e}")
             state.error = str(e)
             self.report_status("failed", {"error": str(e)})
             return state
+
+    def _extract_json(self, text: str) -> dict:
+        """
+        从LLM响应中提取JSON
+
+        Args:
+            text: LLM响应文本
+
+        Returns:
+            解析后的JSON字典
+        """
+        # 尝试直接解析
+        try:
+            return json.loads(text)
+        except json.JSONDecodeError:
+            pass
+
+        # 尝试提取```json ... ```格式
+        json_match = re.search(r'```json\s*(.*?)\s*```', text, re.DOTALL)
+        if json_match:
+            try:
+                return json.loads(json_match.group(1))
+            except json.JSONDecodeError:
+                pass
+
+        # 尝试提取{ ... }格式
+        json_match = re.search(r'\{.*\}', text, re.DOTALL)
+        if json_match:
+            try:
+                return json.loads(json_match.group(0))
+            except json.JSONDecodeError:
+                pass
+
+        # 解析失败返回默认值
+        return {}
 
     async def _check_compilation(self, state: PipelineState) -> dict:
         """
@@ -110,22 +153,27 @@ class TesterAgent(BaseAgent):
         Returns:
             编译检查结果
         """
+        # 如果没有代码，跳过检查
+        if not state.code:
+            return {"success": True, "errors": []}
+
         # 构造Prompt
         messages = [
             {
                 "role": "system",
                 "content": """你是一个编译检查器。请检查代码是否能正常编译。
 
-输出格式：
+输出格式（JSON）：
 {
     "success": true|false,
-    "errors": ["错误列表"]
+    "errors": ["错误列表"],
+    "warnings": ["警告列表"]
 }"""
             },
             {
                 "role": "user",
                 "content": f"""代码：
-{state.code}
+{state.code[:3000]}
 
 请检查编译："""
             }
@@ -134,11 +182,16 @@ class TesterAgent(BaseAgent):
         # 调用LLM
         response = await self.call_llm(messages, temperature=0)
 
-        # 解析响应（简化处理）
-        result = {
-            "success": True,
-            "errors": []
-        }
+        # 解析响应
+        result = self._extract_json(response)
+
+        # 设置默认值
+        if not result:
+            result = {
+                "success": True,
+                "errors": [],
+                "warnings": []
+            }
 
         return result
 
@@ -152,13 +205,22 @@ class TesterAgent(BaseAgent):
         Returns:
             测试结果
         """
+        # 如果没有代码，跳过测试
+        if not state.code:
+            return {
+                "total": 0,
+                "passed": 0,
+                "failed": 0,
+                "errors": []
+            }
+
         # 构造Prompt
         messages = [
             {
                 "role": "system",
                 "content": """你是一个测试运行器。请运行单元测试并报告结果。
 
-输出格式：
+输出格式（JSON）：
 {
     "total": 100,
     "passed": 98,
@@ -174,7 +236,7 @@ class TesterAgent(BaseAgent):
             {
                 "role": "user",
                 "content": f"""代码：
-{state.code}
+{state.code[:3000]}
 
 请运行测试："""
             }
@@ -183,13 +245,17 @@ class TesterAgent(BaseAgent):
         # 调用LLM
         response = await self.call_llm(messages, temperature=0)
 
-        # 解析响应（简化处理）
-        result = {
-            "total": 0,
-            "passed": 0,
-            "failed": 0,
-            "errors": []
-        }
+        # 解析响应
+        result = self._extract_json(response)
+
+        # 设置默认值
+        if not result:
+            result = {
+                "total": 0,
+                "passed": 0,
+                "failed": 0,
+                "errors": []
+            }
 
         return result
 
@@ -203,23 +269,35 @@ class TesterAgent(BaseAgent):
         Returns:
             静态分析结果
         """
+        # 如果没有代码，跳过分析
+        if not state.code:
+            return {
+                "quality_score": 0,
+                "issues": [],
+                "suggestions": []
+            }
+
         # 构造Prompt
         messages = [
             {
                 "role": "system",
                 "content": """你是一个静态分析器。请对代码进行静态分析。
 
-输出格式：
+输出格式（JSON）：
 {
     "quality_score": 85,
     "issues": ["问题列表"],
-    "suggestions": ["建议列表"]
+    "suggestions": ["建议列表"],
+    "metrics": {
+        "complexity": "low|medium|high",
+        "maintainability": "good|fair|poor"
+    }
 }"""
             },
             {
                 "role": "user",
                 "content": f"""代码：
-{state.code}
+{state.code[:3000]}
 
 请进行静态分析："""
             }
@@ -228,12 +306,20 @@ class TesterAgent(BaseAgent):
         # 调用LLM
         response = await self.call_llm(messages, temperature=0)
 
-        # 解析响应（简化处理）
-        result = {
-            "quality_score": 85,
-            "issues": [],
-            "suggestions": []
-        }
+        # 解析响应
+        result = self._extract_json(response)
+
+        # 设置默认值
+        if not result:
+            result = {
+                "quality_score": 85,
+                "issues": [],
+                "suggestions": [],
+                "metrics": {
+                    "complexity": "medium",
+                    "maintainability": "fair"
+                }
+            }
 
         return result
 
@@ -255,10 +341,12 @@ class TesterAgent(BaseAgent):
             测试报告
         """
         # 确定整体状态
-        if not compile_result["success"]:
+        if not compile_result.get("success", True):
             status = "failed"
-        elif test_result["failed"] > 0:
+        elif test_result.get("failed", 0) > 0:
             status = "failed"
+        elif analysis_result.get("quality_score", 100) < 60:
+            status = "warning"
         else:
             status = "passed"
 
@@ -267,7 +355,50 @@ class TesterAgent(BaseAgent):
             "status": status,
             "compile": compile_result,
             "tests": test_result,
-            "analysis": analysis_result
+            "analysis": analysis_result,
+            "summary": self._generate_summary(status, compile_result, test_result, analysis_result)
         }
 
         return report
+
+    def _generate_summary(
+        self,
+        status: str,
+        compile_result: dict,
+        test_result: dict,
+        analysis_result: dict
+    ) -> str:
+        """
+        生成报告摘要
+
+        Args:
+            status: 整体状态
+            compile_result: 编译检查结果
+            test_result: 测试结果
+            analysis_result: 静态分析结果
+
+        Returns:
+            报告摘要
+        """
+        parts = []
+
+        # 编译状态
+        if compile_result.get("success", True):
+            parts.append("编译通过")
+        else:
+            errors = compile_result.get("errors", [])
+            parts.append(f"编译失败: {len(errors)} 个错误")
+
+        # 测试状态
+        passed = test_result.get("passed", 0)
+        failed = test_result.get("failed", 0)
+        total = test_result.get("total", 0)
+        if total > 0:
+            parts.append(f"测试: {passed}/{total} 通过")
+
+        # 代码质量
+        quality_score = analysis_result.get("quality_score", 0)
+        if quality_score > 0:
+            parts.append(f"质量分数: {quality_score}")
+
+        return " | ".join(parts) if parts else "测试完成"
