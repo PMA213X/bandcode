@@ -1,0 +1,19 @@
+{
+  "name": "finish_task",
+  "description": "标记任务完成",
+  "permission": "todowrite",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "task_id": {
+        "type": "string",
+        "description": "任务ID"
+      },
+      "summary": {
+        "type": "string",
+        "description": "完成摘要"
+      }
+    },
+    "required": ["task_id"]
+  }
+}

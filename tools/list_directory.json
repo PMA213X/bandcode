@@ -1,0 +1,20 @@
+{
+  "name": "list_directory",
+  "description": "列出目录结构",
+  "permission": "read",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "path": {
+        "type": "string",
+        "description": "目录路径"
+      },
+      "depth": {
+        "type": "integer",
+        "description": "递归深度",
+        "default": 1
+      }
+    },
+    "required": ["path"]
+  }
+}

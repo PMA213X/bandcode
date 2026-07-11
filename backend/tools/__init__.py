@@ -1,4 +1,6 @@
-from .base import Tool, ToolResult
-from .registry import ToolRegistry
+"""工具模块"""
+
+from tools.base import Tool, ToolResult
+from tools.registry import ToolRegistry
 
 __all__ = ["Tool", "ToolResult", "ToolRegistry"]

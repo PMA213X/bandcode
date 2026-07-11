@@ -1,0 +1,20 @@
+{
+  "name": "search_knowledge",
+  "description": "搜索RAG知识库",
+  "permission": "read",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "query": {
+        "type": "string",
+        "description": "搜索查询"
+      },
+      "top_k": {
+        "type": "integer",
+        "description": "返回结果数量",
+        "default": 5
+      }
+    },
+    "required": ["query"]
+  }
+}
