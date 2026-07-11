@@ -6,6 +6,8 @@ from dataclasses import dataclass, field
 from typing import Optional
 
 from models.llm import LLMClient
+# 导入统一的PipelineState定义
+from agents.base import BaseAgent, PipelineState
 
 
 @dataclass
@@ -16,11 +18,71 @@ class ReviewResult:
     summary: str = ""
 
 
-class ReviewAgent:
+class ReviewAgent(BaseAgent):
     """约束审查智能体 - 检查输出是否违反项目约束"""
 
+    # Agent名称
+    name = "review"
+    # Agent描述
+    description = "约束审查智能体"
+    # 使用的模型
+    model = "mimo-v2.5"
+    # 生成温度
+    temperature = 0
+    # 工具权限
+    permissions = {
+        "read": "allow",
+        "edit": "deny",
+        "bash": "deny"
+    }
+
     def __init__(self, llm_client: LLMClient):
-        self.llm = llm_client
+        # 调用父类初始化
+        super().__init__(llm_client)
+
+    async def run(self, state: PipelineState) -> PipelineState:
+        """
+        执行约束审查
+
+        Args:
+            state: 当前工作流状态
+
+        Returns:
+            修改后的工作流状态
+        """
+        # 上报状态：开始执行
+        self.report_status("running", {"step": "约束合规检查"})
+
+        try:
+            # 构造agent_output
+            agent_output = {
+                "code": state.code,
+                "files_changed": state.files_changed
+            }
+
+            # 执行合规检查
+            result = await self.check_compliance(agent_output, state.constraints)
+
+            # 更新状态
+            state.review_result = {
+                "passed": result.passed,
+                "violations": result.violations,
+                "summary": result.summary
+            }
+
+            # 记录到历史
+            self.add_to_history(state, "review", state.review_result)
+
+            # 上报状态：完成
+            self.report_status("completed", state.review_result)
+
+            return state
+
+        except Exception as e:
+            # 上报错误
+            state.error = str(e)
+            self.report_status("failed", {"error": str(e)})
+            return state
 
     async def check_compliance(
         self,

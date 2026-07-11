@@ -6,10 +6,14 @@ ComplexCoder Agent - 复杂编码智能体
 2. API开发：接口设计与实现
 3. 架构调整：模块重构、依赖关系调整
 4. 跨模块重构：涉及多个模块的代码重构
+
+作者：成员C（wang123456-123456）
 """
 
-# 导入数据类
-from dataclasses import dataclass, field
+# 导入JSON解析
+import json
+# 导入正则表达式
+import re
 # 导入类型提示
 from typing import Optional
 
@@ -67,12 +71,15 @@ class ComplexCoderAgent(BaseAgent):
         try:
             # 1. 分析架构
             architecture = await self._analyze_architecture(state)
+            self.logger.info(f"架构分析完成: {architecture.get('design', 'N/A')[:50]}")
 
             # 2. 设计方案
             design = await self._design_solution(architecture, state)
+            self.logger.info(f"方案设计完成: {design.get('approach', 'N/A')[:50]}")
 
             # 3. 生成代码
             code = await self._generate_code(design, state)
+            self.logger.info(f"代码生成完成, 长度: {len(code)}")
 
             # 4. 应用代码变更
             changes = await self._apply_changes(code, state)
@@ -91,9 +98,45 @@ class ComplexCoderAgent(BaseAgent):
 
         except Exception as e:
             # 上报错误
+            self.logger.error(f"复杂编码任务失败: {e}")
             state.error = str(e)
             self.report_status("failed", {"error": str(e)})
             return state
+
+    def _extract_json(self, text: str) -> dict:
+        """
+        从LLM响应中提取JSON
+
+        Args:
+            text: LLM响应文本
+
+        Returns:
+            解析后的JSON字典
+        """
+        # 尝试直接解析
+        try:
+            return json.loads(text)
+        except json.JSONDecodeError:
+            pass
+
+        # 尝试提取```json ... ```格式
+        json_match = re.search(r'```json\s*(.*?)\s*```', text, re.DOTALL)
+        if json_match:
+            try:
+                return json.loads(json_match.group(1))
+            except json.JSONDecodeError:
+                pass
+
+        # 尝试提取{ ... }格式
+        json_match = re.search(r'\{.*\}', text, re.DOTALL)
+        if json_match:
+            try:
+                return json.loads(json_match.group(0))
+            except json.JSONDecodeError:
+                pass
+
+        # 解析失败返回默认值
+        return {}
 
     async def _analyze_architecture(self, state: PipelineState) -> dict:
         """
@@ -114,11 +157,12 @@ class ComplexCoderAgent(BaseAgent):
 2. 依赖关系
 3. 设计方案
 
-输出格式：
+输出格式（JSON）：
 {
     "modules": ["影响的模块"],
     "dependencies": ["依赖关系"],
-    "design": "设计方案描述"
+    "design": "设计方案描述",
+    "risks": ["潜在风险"]
 }"""
             },
             {
@@ -127,7 +171,7 @@ class ComplexCoderAgent(BaseAgent):
 {state.user_input}
 
 计划：
-{state.plan}
+{json.dumps(state.plan, ensure_ascii=False, indent=2) if state.plan else "无"}
 
 请分析架构："""
             }
@@ -136,12 +180,17 @@ class ComplexCoderAgent(BaseAgent):
         # 调用LLM
         response = await self.call_llm(messages, temperature=0.1)
 
-        # 解析响应（简化处理）
-        architecture = {
-            "modules": [],
-            "dependencies": [],
-            "design": "待设计"
-        }
+        # 解析响应
+        architecture = self._extract_json(response)
+
+        # 设置默认值
+        if not architecture:
+            architecture = {
+                "modules": [],
+                "dependencies": [],
+                "design": "待设计",
+                "risks": []
+            }
 
         return architecture
 
@@ -162,17 +211,18 @@ class ComplexCoderAgent(BaseAgent):
                 "role": "system",
                 "content": """你是一个解决方案设计器。请根据架构分析设计详细的解决方案：
 
-输出格式：
+输出格式（JSON）：
 {
     "approach": "实现方案",
     "files": ["需要修改的文件"],
-    "steps": ["实现步骤"]
+    "steps": ["实现步骤"],
+    "considerations": ["注意事项"]
 }"""
             },
             {
                 "role": "user",
                 "content": f"""架构分析：
-{architecture}
+{json.dumps(architecture, ensure_ascii=False, indent=2)}
 
 约束：
 {state.constraint_summary}
@@ -184,12 +234,17 @@ class ComplexCoderAgent(BaseAgent):
         # 调用LLM
         response = await self.call_llm(messages, temperature=0.1)
 
-        # 解析响应（简化处理）
-        design = {
-            "approach": "待实现",
-            "files": [],
-            "steps": []
-        }
+        # 解析响应
+        design = self._extract_json(response)
+
+        # 设置默认值
+        if not design:
+            design = {
+                "approach": "待实现",
+                "files": [],
+                "steps": [],
+                "considerations": []
+            }
 
         return design
 
@@ -214,12 +269,13 @@ class ComplexCoderAgent(BaseAgent):
 1. 输出完整代码，不得省略
 2. 遵循项目约束
 3. 代码结构清晰
-4. 包含必要的注释"""
+4. 包含必要的注释
+5. 考虑错误处理和边界情况"""
             },
             {
                 "role": "user",
                 "content": f"""设计方案：
-{design}
+{json.dumps(design, ensure_ascii=False, indent=2)}
 
 约束：
 {state.constraint_summary}
