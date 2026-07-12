@@ -1,0 +1,20 @@
+{
+  "name": "update_memory",
+  "description": "写入或更新Memory",
+  "permission": "edit",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "layer": {
+        "type": "string",
+        "description": "Memory层级",
+        "enum": ["global", "project", "task", "session", "checkpoint"]
+      },
+      "content": {
+        "type": "string",
+        "description": "Memory内容"
+      }
+    },
+    "required": ["layer", "content"]
+  }
+}

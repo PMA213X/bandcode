@@ -1,0 +1,19 @@
+{
+  "name": "write_file",
+  "description": "写入或创建文件",
+  "permission": "edit",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "path": {
+        "type": "string",
+        "description": "文件路径"
+      },
+      "content": {
+        "type": "string",
+        "description": "文件内容"
+      }
+    },
+    "required": ["path", "content"]
+  }
+}
