@@ -1,5 +1,7 @@
 // 导入 React Hooks：状态管理、副作用处理、性能优化、DOM 引用
 import { useState, useEffect, useCallback, useRef } from "react";
+// 导入 Node.js 环境的 EventSource polyfill
+import EventSource from "eventsource";
 // 导入 SSE 相关的类型定义
 import type { SSEEvent, SSEEventType, SSEEventData } from "../types";
 
