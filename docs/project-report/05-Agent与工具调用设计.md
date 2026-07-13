@@ -1,76 +1,6 @@
 # 第五章 Agent 与工具调用设计
 
-## 5.1 Agent 架构设计
-
-### BaseAgent 基类
-
-`backend/agents/base.py` 定义了所有 Agent 的抽象基类：
-
-```python
-class BaseAgent(ABC):
-    name: str = "base"           # Agent 名称
-    description: str = ""        # Agent 描述
-    model: str = "mimo-v2.5-pro" # 使用的 LLM 模型
-    temperature: float = 0.1     # 生成温度
-    system_prompt: str = ""      # 系统提示词
-    permissions: dict = {        # 工具权限配置
-        "read": "allow",
-        "edit": "allow",
-        "bash": "allow"
-    }
-
-    @abstractmethod
-    async def run(self, state: PipelineState) -> PipelineState:
-        """执行 Agent 逻辑（子类必须实现）"""
-
-    async def call_llm(self, messages, temperature=None) -> str:
-        """调用 LLM"""
-
-    async def call_tool(self, tool_name: str, args: dict) -> Any:
-        """调用 Tool（通过 ToolRegistry）"""
-
-    def report_status(self, status: str, data: dict = None):
-        """上报状态（SSE 推送）"""
-
-    def add_to_history(self, state, action, result):
-        """添加到 Agent 执行历史"""
-```
-
-BaseAgent 提供了统一的接口：LLM 调用（call_llm）、工具调用（call_tool）、状态上报（report_status）、历史记录（add_to_history）。所有业务 Agent 和系统 Agent 都继承此类。
-
-### Agent 管理器（AgentManager）
-
-`backend/agents/manager.py` 实现了 Agent 的自动发现和生命周期管理：
-
-```python
-class AgentManager:
-    def __init__(self, llm_client: LLMClient):
-        self.agents: dict[str, BaseAgent] = {}
-
-    def auto_discover(self, agents_dir=None):
-        """自动扫描 agents/ 目录，发现并注册所有 Agent"""
-        for file_path in Path(agents_dir).glob("*.py"):
-            if file_path.name.startswith("_") or file_path.name in ["base.py", "manager.py"]:
-                continue
-            module = importlib.import_module(f"agents.{file_path.stem}")
-            for attr_name in dir(module):
-                attr = getattr(module, attr_name)
-                if isinstance(attr, type) and issubclass(attr, BaseAgent) and attr is not BaseAgent:
-                    agent = attr(self.llm_client)
-                    self.register(agent)
-
-    async def run(self, name: str, state: PipelineState) -> PipelineState:
-        """执行指定 Agent（带权限检查）"""
-        agent = self.get(name)
-        if not self._check_permissions(agent):
-            raise PermissionError(...)
-        state.current_agent = name
-        return await agent.run(state)
-```
-
-AgentManager 通过 `importlib` 动态导入模块，自动扫描 `agents/` 目录下的 Python 文件，查找 BaseAgent 的子类并实例化注册。新增 Agent 只需在 agents/ 目录下创建新的 Python 文件，无需修改框架代码。
-
-## 5.2 Tool 架构设计
+## 5.1 Tool 设计
 
 ### Tool 基类
 
@@ -104,6 +34,51 @@ class ToolResult:
     error: Optional[str] = None # 错误信息（失败时）
     execution_time: Optional[float] = None  # 执行时间（秒）
 ```
+
+### 8 个内置工具
+
+项目在 `backend/tools/builtins/` 目录下实现了 8 个内置工具，对应的 JSON Schema 定义在 `tools/*.json` 中：
+
+| 工具名称 | 功能 | 权限 | 定义文件 | 实现文件 |
+|----------|------|------|----------|----------|
+| read_file | 读取指定路径的文件内容 | read | `tools/read_file.json` | `backend/tools/builtins/read_file.py` |
+| write_file | 写入或创建文件 | write | `tools/write_file.json` | `backend/tools/builtins/write_file.py` |
+| list_directory | 列出目录下的文件和子目录 | read | `tools/list_directory.json` | `backend/tools/builtins/list_directory.py` |
+| search_project | 在项目文件中执行全文搜索 | read | `tools/search_project.json` | `backend/tools/builtins/search_project.py` |
+| search_knowledge | 在 RAG 知识库中执行语义检索 | read | `tools/search_knowledge.json` | `backend/tools/builtins/search_knowledge.py` |
+| create_task | 创建新任务（JSON 文件存储） | write | `tools/create_task.json` | `backend/tools/builtins/create_task.py` |
+| finish_task | 标记任务为已完成 | write | `tools/finish_task.json` | `backend/tools/builtins/finish_task.py` |
+| update_memory | 写入或更新记忆文件 | write | `tools/update_memory.json` | `backend/tools/builtins/update_memory.py` |
+
+## 5.2 工具调用流程
+
+```mermaid
+graph TD
+    A[用户输入] --> B[Pipeline 节点执行]
+    B --> C[Agent.run 调用]
+    C --> D{需要工具}
+    D -->|是| E[Agent.call_tool]
+    E --> F[ToolRegistry.call]
+    F --> G[权限校验]
+    G --> H[参数验证]
+    H --> I[Tool.execute]
+    I --> J[ToolResult]
+    J --> K[Agent 处理结果]
+    D -->|否| K
+    K --> L[生成回答]
+    L --> M[SSE 推送给前端]
+```
+
+### 完整调用链
+
+1. Pipeline 执行到子 Agent 节点时，调用 AgentManager.run(agent_name, state)
+2. AgentManager 检查 Agent 权限后调用 agent.run(state)
+3. Agent 内部通过 call_llm 分析需求，判断是否需要调用工具
+4. 如需工具，Agent 调用 self.call_tool(tool_name, args)
+5. call_tool 通过 self._tool_registry.call() 执行工具
+6. ToolRegistry 先检查权限（_check_permission），再验证参数（validate_params），最后执行 tool.execute()
+7. 返回 ToolResult（success/data/error/execution_time）
+8. Agent 将工具结果整合到 state 中，继续后续流程
 
 ### Tool 注册中心（ToolRegistry）
 
@@ -142,56 +117,114 @@ Tool.permission = "write"
 → ToolRegistry._check_permission() 检查 agent_permissions["write"] == "allow"
 ```
 
-## 5.3 内置工具
+## 5.3 Agent 基类设计
 
-项目在 `backend/tools/builtins/` 目录下实现了 8 个内置工具：
+`backend/agents/base.py` 定义了所有 Agent 的抽象基类：
 
-| 工具名称 | 功能 | 权限 |
-|----------|------|------|
-| read_file | 读取文件内容 | read |
-| write_file | 写入文件内容 | write |
-| list_directory | 列出目录内容 | read |
-| search_project | 搜索项目文件 | read |
-| search_knowledge | 搜索知识库 | read |
-| create_task | 创建任务 | write |
-| finish_task | 完成任务 | write |
-| update_memory | 更新记忆 | write |
+```python
+class BaseAgent(ABC):
+    name: str = "base"           # Agent 名称
+    description: str = ""        # Agent 描述
+    model: str = "mimo-v2.5-pro" # 使用的 LLM 模型
+    temperature: float = 0.1     # 生成温度
+    system_prompt: str = ""      # 系统提示词
+    permissions: dict = {        # 工具权限配置
+        "read": "allow",
+        "edit": "allow",
+        "bash": "allow"
+    }
 
-## 5.4 工具调用流程
+    @abstractmethod
+    async def run(self, state: PipelineState) -> PipelineState:
+        """执行 Agent 逻辑（子类必须实现）"""
 
-```mermaid
-graph TD
-    A[用户输入] --> B[Pipeline 节点执行]
-    B --> C[Agent.run 调用]
-    C --> D{需要工具}
-    D -->|是| E[Agent.call_tool]
-    E --> F[ToolRegistry.call]
-    F --> G[权限校验]
-    G --> H[参数验证]
-    H --> I[Tool.execute]
-    I --> J[ToolResult]
-    J --> K[Agent 处理结果]
-    D -->|否| K
-    K --> L[生成回答]
-    L --> M[SSE 推送给前端]
+    async def call_llm(self, messages, temperature=None) -> str:
+        """调用 LLM"""
+
+    async def call_tool(self, tool_name: str, args: dict) -> Any:
+        """调用 Tool（通过 ToolRegistry）"""
+
+    def report_status(self, status: str, data: dict = None):
+        """上报状态（SSE 推送）"""
+
+    def add_to_history(self, state, action, result):
+        """添加到 Agent 执行历史"""
 ```
 
-### 完整调用链
+BaseAgent 提供了统一的接口：LLM 调用（call_llm）、工具调用（call_tool）、状态上报（report_status）、历史记录（add_to_history）。所有业务 Agent 和系统 Agent 都继承此类。
 
-1. Pipeline 执行到子 Agent 节点时，调用 AgentManager.run(agent_name, state)
-2. AgentManager 检查 Agent 权限后调用 agent.run(state)
-3. Agent 内部通过 call_llm 分析需求，判断是否需要调用工具
-4. 如需工具，Agent 调用 self.call_tool(tool_name, args)
-5. call_tool 通过 self._tool_registry.call() 执行工具
-6. ToolRegistry 先检查权限（_check_permission），再验证参数（validate_params），最后执行 tool.execute()
-7. 返回 ToolResult（success/data/error/execution_time）
-8. Agent 将工具结果整合到 state 中，继续后续流程
+### PipelineState 数据结构
 
-## 5.5 Agent 提示词管理
+`PipelineState` 是 Agent 之间传递状态的核心数据结构，定义在 `backend/agents/base.py` 中，包含 17 个字段：
+
+```python
+@dataclass
+class PipelineState:
+    user_input: str = ""              # 用户输入
+    session_id: str = ""              # 会话 ID
+    constraints: list = field(default_factory=list)   # 约束列表
+    rag_context: list = field(default_factory=list)    # RAG 上下文
+    memory_context: dict = field(default_factory=dict) # 记忆上下文
+    plan: dict = field(default_factory=dict)           # 执行计划
+    selected_agent: str = ""          # 选中的 Agent
+    agent_output: str = ""            # Agent 输出
+    test_result: dict = field(default_factory=dict)    # 测试结果
+    review_result: dict = field(default_factory=dict)  # 审查结果
+    is_approved: bool = False         # 审批状态
+    error: str = ""                   # 错误信息
+    history: list = field(default_factory=list)        # 执行历史
+    messages: list = field(default_factory=list)       # 消息列表
+    project: str = ""                 # 项目名称
+    tools_used: list = field(default_factory=list)     # 已用工具
+    status: str = "pending"           # 当前状态
+```
+
+## 5.4 Agent 管理器
+
+`backend/agents/manager.py` 实现了 Agent 的自动发现和生命周期管理：
+
+```python
+class AgentManager:
+    def __init__(self, llm_client: LLMClient):
+        self.agents: dict[str, BaseAgent] = {}
+
+    def auto_discover(self, agents_dir=None):
+        """自动扫描 agents/ 目录，发现并注册所有 Agent"""
+        for file_path in Path(agents_dir).glob("*.py"):
+            if file_path.name.startswith("_") or file_path.name in ["base.py", "manager.py"]:
+                continue
+            module = importlib.import_module(f"agents.{file_path.stem}")
+            for attr_name in dir(module):
+                attr = getattr(module, attr_name)
+                if isinstance(attr, type) and issubclass(attr, BaseAgent) and attr is not BaseAgent:
+                    agent = attr(self.llm_client)
+                    self.register(agent)
+
+    async def run(self, name: str, state: PipelineState) -> PipelineState:
+        """执行指定 Agent（带权限检查）"""
+        agent = self.get(name)
+        if not self._check_permissions(agent):
+            raise PermissionError(...)
+        state.current_agent = name
+        return await agent.run(state)
+```
+
+AgentManager 通过 `importlib` 动态导入模块，自动扫描 `agents/` 目录下的 Python 文件，查找 BaseAgent 的子类并实例化注册。新增 Agent 只需在 agents/ 目录下创建新的 Python 文件，无需修改框架代码。
+
+### Agent 自动发现流程
+
+1. AgentManager 初始化时接收 LLMClient 实例
+2. `auto_discover()` 扫描 `backend/agents/` 目录下的所有 `.py` 文件
+3. 跳过 `__init__.py`、`base.py`、`manager.py`
+4. 使用 `importlib.import_module()` 动态导入模块
+5. 遍历模块属性，查找 BaseAgent 的子类
+6. 实例化子类并调用 `self.register(agent)` 注册
+
+### Agent 提示词管理
 
 每个 Agent 的提示词存储在 `agents/*.md` 文件中（planner.md、constraint.md、review.md、simple-coder.md、complex-coder.md、tester.md），通过 Agent 子类的 `system_prompt` 属性加载。提示词定义了 Agent 的角色、职责、输出格式等，是 Agent 行为的核心驱动力。
 
-## 5.6 扩展性设计
+## 5.5 扩展性设计
 
 ### 新增 Agent
 

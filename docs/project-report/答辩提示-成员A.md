@@ -1,60 +1,57 @@
 # 成员A 答辩提示
 
 ## 你的角色
-组长/项目经理
+项目经理 / 组长
 
 ## 答辩要点
 
 ### 1. 项目整体介绍（2分钟）
-- 项目背景：熏掌门是武夷山非遗食品品牌
-- 解决问题：客服效率低、响应慢、回答不一致
-- 技术方案：LangChain + LangGraph + RAG
+- BandCode 定位：基于分层记忆与六智能体协作的 AI 编程助手 CLI 工具
+- 技术栈概览：Python 3.11 + FastAPI 后端，React 18 + TypeScript + Tailwind CSS 前端，MiMo v2.5 Pro 大模型
+- 核心能力：8 节点 Pipeline 工作流、六层 Memory 系统、8 个内置工具、12 种 SSE 事件类型
 
 ### 2. 项目管理经验（2分钟）
-- 如何分工：7人团队，AI/后端/前端三组
-- 如何协调：每日站会、代码审查
-- 遇到的挑战：如何解决
+- 7 人团队分工：项目经理、RAG 开发、Agent 开发、后端 ×2、前端 ×2
+- 敏捷开发流程：需求分析 → 架构设计 → 模块开发 → 集成测试 → 迭代优化
+- 协作方式：Git 分支管理、接口先行（先定义 API 契约再并行开发）、定期 Code Review
 
 ### 3. 架构设计（2分钟）
-- 三层架构：界面层、应用层、数据层
-- 技术选型理由
-- 模块划分
+- 分层架构：API 层 → Agent 层 → Tool 层 → Memory 层 → Database 层
+- 六智能体协作：Planner、SimpleCoder、ComplexCoder、Tester、Constraint、Review
+- Pipeline 8 节点：从用户输入到最终输出的完整处理链路
+- 配置驱动：agents/*.md 定义 Agent 行为，tools/*.json 定义工具元数据
 
 ### 负责的源代码文件
 
-- `backend/main.py` — 后端服务入口，FastAPI 应用创建、CORS 配置、中间件注册、路由注册
-- `backend/config/loader.py` — 配置加载器，settings.json 读写、单例模式、默认配置定义
-- `backend/config/logging.py` — 日志系统，中文格式化器、日志级别配置
-- `backend/api/errors.py` — 全局错误处理，错误码定义、AppException、异常处理器注册
-- `backend/api/middleware.py` — 中间件，请求日志、安全响应头
-- `backend/workflow/pipeline.py` — 工作流主管线，8 节点编排、Review 修正循环
-- `backend/workflow/state.py` — 工作流状态数据结构定义
-- `backend/workflow/checkpoint.py` — 文件快照管理器
-- `backend/workflow/review_loop.py` — Review 修正循环逻辑
+- `backend/main.py` — 应用入口，FastAPI 实例创建、CORS 配置、路由注册、启动/关闭事件
+- `backend/config/` — 配置管理，JSON 配置文件读写、系统参数管理、环境变量处理
+- `backend/api/errors.py` — 全局错误处理，自定义异常类、register_error_handlers 统一异常捕获
+- `backend/api/middleware.py` — 中间件，SecurityHeadersMiddleware 安全头、RequestLoggingMiddleware 请求日志
+- `backend/workflow/` — Pipeline 工作流引擎，8 节点流程控制、PipelineState 状态管理、Agent 调度
 
 ### 所需知识点
 
-- FastAPI 应用框架（创建实例、路由注册、中间件链）
-- CORS 跨域资源共享配置
-- Python logging 模块（Formatter、Handler、Logger）
-- Pydantic 数据验证模型
-- JSON 配置文件读写与单例模式
-- 项目架构设计（三层架构：界面层、应用层、数据层）
+- FastAPI 应用生命周期（lifespan、startup/shutdown 事件）
+- CORS 跨域配置（CORSMiddleware、allow_origins、allow_methods）
+- Python logging 日志系统（日志级别、格式化、Handler）
+- Pydantic 数据验证（BaseModel、Field、validator）
+- JSON 配置文件管理（读写、默认值、环境变量覆盖）
+- 项目分层架构设计（关注点分离、依赖注入）
 
 ### 可能的问题
 
-**Q1: 为什么选择 LangChain 而不是自研？**
+**Q1: 为什么选择 FastAPI 作为后端框架？**
 
-A: LangChain 是成熟的 LLM 应用开发框架，提供了 PromptTemplate、RetrievalQA、AgentExecutor 等丰富组件，可以快速搭建 RAG 和 Agent 系统。自研框架需要大量开发时间且稳定性无法保证。LangChain 社区活跃、文档完善，遇到问题容易找到解决方案，同时与 LangGraph 配合良好，支持复杂的状态流转和多 Agent 编排。
+A: FastAPI 是异步优先的 Python Web 框架，原生支持 async/await，与项目中大量异步操作（SSE 流式输出、AsyncOpenAI 调用、数据库操作）配合良好。FastAPI 自动生成 OpenAPI 文档（Swagger UI），方便前后端联调。相比 Django 更轻量、启动快，适合 API 服务场景；相比 Flask 原生支持类型验证（集成 Pydantic），开发效率更高。
 
-**Q2: 如何保证回答准确性？**
+**Q2: 如何保证项目的代码质量？**
 
-A: 通过 RAG 技术将知识库文档向量化后存入 ChromaDB，用户提问时先检索相关文档片段作为上下文注入 Prompt，减少大模型幻觉。同时设置了 Top-K 相似度检索策略，返回最相关的文档片段。知识库内容来自官方产品文档和客服标准话术，确保信息权威性。
+A: 从四个维度保障：一是类型安全，全项目使用 Python 类型注解 + Pydantic 数据验证，API 请求和响应都有严格的数据模型；二是分层架构，API 层、Agent 层、Tool 层、Memory 层职责清晰，降低耦合；三是统一错误处理，通过 register_error_handlers 全局捕获异常，返回标准化错误响应；四是日志系统，RequestLoggingMiddleware 记录所有请求日志，便于排查问题。
 
-**Q3: 如何处理并发请求？**
+**Q3: 项目如何处理并发请求？**
 
-A: 后端基于 FastAPI 框架，天然支持异步并发处理。聊天接口使用 asyncio.create_task() 启动后台任务处理 Agent 工作流，通过 asyncio.Queue 在处理函数和 SSE 生成器之间传递事件，不会阻塞主线程。LLM 调用使用 AsyncOpenAI 异步客户端，支持高并发场景。
+A: FastAPI 基于 Uvicorn（ASGI 服务器）运行，天然支持异步并发。项目中 LLM 调用使用 AsyncOpenAI 异步客户端，数据库操作使用 async/await，SSE 流式输出通过 asyncio.Queue 在处理函数和事件生成器之间传递数据。多个用户可以同时发起聊天请求，每个请求独立处理，互不阻塞。
 
-**Q4: 项目有什么创新点？**
+**Q4: 项目的核心创新点是什么？**
 
-A: 主要创新点有三个：一是采用六层分层记忆架构（global/project/task/session/checkpoint/notes），让 Agent 具备长期记忆能力；二是 8 节点工作流管线设计（约束检索→RAG→Prompt 构建→Planner→审批→子 Agent→Tester→Review），实现了完整的代码生成质量保障闭环；三是 Review 修正循环机制，当审查发现违规时自动反馈给 Planner 重新生成，最多重试 3 次。
+A: 三个核心创新：一是六智能体协作架构，不同 Agent（Planner 规划、SimpleCoder/ComplexCoder 编码、Tester 测试、Constraint 约束检查、Review 代码审查）分工协作，模拟真实开发团队；二是六层分层记忆系统（global/project/task/session/checkpoint/notes），让 AI 能跨会话保持上下文；三是配置驱动设计，Agent 行为通过 Markdown 文件定义、工具通过 JSON 元数据注册，新增 Agent 或工具无需修改核心代码。

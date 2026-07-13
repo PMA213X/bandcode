@@ -2,14 +2,31 @@
 
 ## 4.1 数据来源
 
+BandCode 的 RAG 知识库用于存储项目相关的领域知识，为 AI 回答提供上下文支撑。知识库的数据来源包括：
+
 | 数据类型 | 来源 | 内容 |
 |----------|------|------|
-| 产品信息 | 官方文档 | 产品名称、口味、规格、价格 |
-| 常见问题 | 客服记录 | 用户高频问题及标准回答 |
-| 物流政策 | 运营文档 | 配送方式、时效、费用 |
-| 售后政策 | 公司制度 | 退换货规则、投诉处理 |
+| 项目文档 | 项目目录下的 Markdown 文件 | 架构说明、API 文档、开发规范 |
+| Agent 提示词 | `agents/*.md` | 各 Agent 的角色定义、行为约束、输出格式 |
+| 工具定义 | `tools/*.json` | 工具的 JSON Schema 定义、参数说明 |
+| 项目配置 | `settings.json` | 模型配置、Agent 配置、工作流配置 |
+| 用户知识 | 用户手动添加的文档 | 业务规范、技术文档、FAQ |
 
-## 4.2 文本切分器（DocumentChunker）
+知识库支持增量更新：新增或修改文件时，通过 `RAGIndexer.index_file()` 重新索引单个文件，无需全量重建。
+
+## 4.2 文档加载
+
+文档加载流程为：原始文件 → DocumentChunker 切分 → EmbeddingClient 向量化 → ChromaDB 存储。
+
+`RAGIndexer` 提供三个层级的索引接口：
+
+| 方法 | 功能 | 使用场景 |
+|------|------|----------|
+| `index_documents(documents, metadatas)` | 索引多条文档 | 批量导入项目文档、Agent 提示词 |
+| `index_file(file_path)` | 索引单个文件 | 更新单个知识库文件 |
+| `index_directory(dir_path, pattern)` | 索引目录下所有匹配文件 | 全量重建知识库（默认 `*.md`） |
+
+## 4.3 文本切分器（DocumentChunker）
 
 `backend/rag/chunker.py` 实现了自定义的文档切分器，支持两种切分模式：
 
@@ -67,7 +84,7 @@ def _split_long_text(self, text: str) -> list[str]:
     start = end - self.overlap
 ```
 
-## 4.3 Embedding 模型
+## 4.4 Embedding 模型
 
 `backend/models/embedding.py` 封装了 SentenceTransformers 的向量化功能：
 
@@ -96,7 +113,7 @@ class EmbeddingClient:
 
 默认使用 `all-MiniLM-L6-v2` 模型，输出 384 维向量。支持多种模型切换，不同模型的向量维度会自动适配。
 
-## 4.4 向量数据库（ChromaDB）
+## 4.5 向量数据库（ChromaDB）
 
 `backend/rag/indexer.py` 和 `backend/rag/retriever.py` 使用 ChromaDB 作为向量数据库：
 
@@ -116,7 +133,7 @@ class RAGIndexer:
 
 | 方法 | 功能 | 使用场景 |
 |------|------|----------|
-| index_documents(documents, metadatas) | 索引多条文档 | 批量导入产品信息、FAQ |
+| index_documents(documents, metadatas) | 索引多条文档 | 批量导入项目文档、Agent 提示词 |
 | index_file(file_path) | 索引单个文件 | 更新单个知识库文件 |
 | index_directory(dir_path, pattern) | 索引目录下所有匹配文件 | 全量重建知识库 |
 
@@ -149,7 +166,7 @@ class SearchResult:
     metadata: dict    # 元数据（source、filename 等）
 ```
 
-## 4.5 检索流程
+## 4.6 检索流程
 
 ```mermaid
 graph LR
@@ -169,3 +186,12 @@ graph LR
 4. 返回 Top-K 个 SearchResult（包含 content、score、metadata）
 5. 将检索结果的 content 拼接到 LLM Prompt 中作为上下文
 6. LLM 基于上下文生成回答，减少幻觉
+
+### Pipeline 中的 RAG 节点
+
+在 Pipeline 工作流中，RAG 检索是第 2 个节点（node_rag）。执行流程为：
+
+1. 从 PipelineState.user_input 获取用户输入
+2. 调用 RAGRetriever.search() 检索 Top-5 相关文档
+3. 将检索结果存入 PipelineState.rag_context
+4. 后续 Prompt 构建节点将 rag_context 整合到 LLM Prompt 中
