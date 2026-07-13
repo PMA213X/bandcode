@@ -1,6 +1,6 @@
-import { MessageSquare, Settings, Brain, History, HelpCircle } from 'lucide-react'
+import { MessageSquare, Settings, Brain, History, HelpCircle, FlaskConical } from 'lucide-react'
 
-type View = 'chat' | 'settings' | 'memory' | 'history'
+type View = 'chat' | 'settings' | 'memory' | 'history' | 'model-test'
 
 interface SidebarProps {
   currentView: View
@@ -12,6 +12,7 @@ const menuItems = [
   { id: 'settings' as View, icon: Settings, label: '设置', shortcut: '2' },
   { id: 'memory' as View, icon: Brain, label: '记忆', shortcut: '3' },
   { id: 'history' as View, icon: History, label: '历史', shortcut: '4' },
+  { id: 'model-test' as View, icon: FlaskConical, label: '测试', shortcut: '5' },
 ]
 
 export default function Sidebar({ currentView, onViewChange }: SidebarProps) {

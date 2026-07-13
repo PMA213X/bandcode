@@ -21,6 +21,7 @@ Memory 系统分为 6 层：
 from fastapi import APIRouter, Query
 from typing import Optional
 from datetime import datetime
+from pathlib import Path
 
 from memory.manager import MemoryManager
 
@@ -28,6 +29,86 @@ router = APIRouter(prefix="/memory", tags=["记忆"])
 
 # 全局 MemoryManager 实例
 memory_manager = MemoryManager()
+
+# Memory 根目录
+MEMORY_ROOT = Path(__file__).parent.parent.parent / "memory"
+
+
+def _read_memory_file(layer: str, project: Optional[str] = None) -> dict:
+    """读取指定层的 Memory 文件"""
+    try:
+        if layer == "global":
+            file_path = MEMORY_ROOT / "global" / "MEMORY.md"
+        elif layer == "project":
+            if project:
+                file_path = MEMORY_ROOT / "projects" / project / "MEMORY.md"
+            else:
+                file_path = MEMORY_ROOT / "projects" / "global" / "MEMORY.md"
+        elif layer == "session":
+            # 获取最新的 session
+            sessions_dir = MEMORY_ROOT / "sessions"
+            if sessions_dir.exists():
+                sessions = sorted(sessions_dir.iterdir(), key=lambda p: p.stat().st_mtime, reverse=True)
+                if sessions:
+                    # 查找 session 中的 MEMORY.md 或 checkpoint.md
+                    session_dir = sessions[0]
+                    file_path = session_dir / "checkpoint.md"
+                    if not file_path.exists():
+                        file_path = session_dir / "MEMORY.md"
+                else:
+                    return {"content": "暂无会话记录", "updated_at": None}
+            else:
+                return {"content": "暂无会话记录", "updated_at": None}
+        elif layer == "task":
+            # 获取最新 session 的任务
+            sessions_dir = MEMORY_ROOT / "sessions"
+            if sessions_dir.exists():
+                sessions = sorted(sessions_dir.iterdir(), key=lambda p: p.stat().st_mtime, reverse=True)
+                if sessions:
+                    tasks_dir = sessions[0] / "tasks"
+                    if tasks_dir.exists():
+                        task_files = list(tasks_dir.glob("*/progress.md"))
+                        if task_files:
+                            # 合并所有任务内容
+                            contents = []
+                            for tf in task_files[:5]:  # 最多显示5个任务
+                                contents.append(tf.read_text(encoding="utf-8"))
+                            content = "\n\n---\n\n".join(contents)
+                            return {"content": content, "updated_at": datetime.now().isoformat()}
+                return {"content": "暂无任务记录", "updated_at": None}
+            else:
+                return {"content": "暂无任务记录", "updated_at": None}
+        elif layer == "checkpoint":
+            sessions_dir = MEMORY_ROOT / "sessions"
+            if sessions_dir.exists():
+                sessions = sorted(sessions_dir.iterdir(), key=lambda p: p.stat().st_mtime, reverse=True)
+                if sessions:
+                    file_path = sessions[0] / "checkpoint.md"
+                else:
+                    return {"content": "暂无检查点", "updated_at": None}
+            else:
+                return {"content": "暂无检查点", "updated_at": None}
+        elif layer == "notes":
+            sessions_dir = MEMORY_ROOT / "sessions"
+            if sessions_dir.exists():
+                sessions = sorted(sessions_dir.iterdir(), key=lambda p: p.stat().st_mtime, reverse=True)
+                if sessions:
+                    file_path = sessions[0] / "notes.md"
+                else:
+                    return {"content": "暂无笔记", "updated_at": None}
+            else:
+                return {"content": "暂无笔记", "updated_at": None}
+        else:
+            return None
+
+        if file_path and file_path.exists():
+            content = file_path.read_text(encoding="utf-8")
+            updated_at = datetime.fromtimestamp(file_path.stat().st_mtime).isoformat()
+            return {"content": content, "updated_at": updated_at}
+        else:
+            return {"content": f"暂无{layer}记忆内容", "updated_at": None}
+    except Exception as e:
+        return {"content": f"读取失败: {str(e)}", "updated_at": None}
 
 
 @router.get("")
@@ -37,43 +118,21 @@ async def get_memory(
 ):
     """
     获取 Memory 信息接口
-    
+
     获取指定 Memory 层的内容。
     """
-    memory_data = {
-        "global": {
-            "content": "# 全局记忆\n项目规范和配置信息",
-            "updated_at": "2026-07-10T08:00:00"
-        },
-        "project": {
-            "content": "# 项目记忆\n当前项目的状态和决策",
-            "updated_at": "2026-07-10T08:30:00"
-        },
-        "task": {
-            "content": "# 任务记忆\n当前任务的进度和上下文",
-            "updated_at": "2026-07-10T08:45:00"
-        },
-        "session": {
-            "content": "# 会话记忆\n当前会话的历史记录",
-            "updated_at": "2026-07-10T08:55:00"
-        },
-        "checkpoint": {
-            "content": "# 检查点\n最近的检查点快照",
-            "updated_at": "2026-07-10T08:50:00"
-        },
-        "notes": {
-            "content": "# 笔记\n开发者笔记",
-            "updated_at": "2026-07-10T08:00:00"
-        },
-    }
-
-    if layer not in memory_data:
+    valid_layers = ["global", "project", "task", "session", "checkpoint", "notes"]
+    if layer not in valid_layers:
         return {"code": -1, "data": None, "message": f"未知的 Memory 层：{layer}"}
+
+    result = _read_memory_file(layer, project)
+    if result is None:
+        return {"code": -1, "data": None, "message": f"读取 Memory 失败"}
 
     data = {
         "layer": layer,
-        "content": memory_data[layer]["content"],
-        "updated_at": memory_data[layer]["updated_at"],
+        "content": result["content"],
+        "updated_at": result["updated_at"],
     }
     return {"code": 0, "data": data, "message": "ok"}
 

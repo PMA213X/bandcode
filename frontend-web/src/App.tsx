@@ -3,9 +3,10 @@ import Chat from './components/Chat'
 import Settings from './components/Settings'
 import MemoryView from './components/MemoryView'
 import History from './components/History'
+import ModelTest from './components/ModelTest'
 import Sidebar from './components/Sidebar'
 
-type View = 'chat' | 'settings' | 'memory' | 'history'
+type View = 'chat' | 'settings' | 'memory' | 'history' | 'model-test'
 
 function App() {
   const [currentView, setCurrentView] = useState<View>('chat')
@@ -33,6 +34,7 @@ function App() {
           {currentView === 'settings' && <Settings />}
           {currentView === 'memory' && <MemoryView />}
           {currentView === 'history' && <History />}
+          {currentView === 'model-test' && <ModelTest />}
         </div>
       </main>
     </div>

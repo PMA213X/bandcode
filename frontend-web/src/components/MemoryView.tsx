@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react'
-import { RefreshCw, Search, Globe, Folder, List, MessageSquare, Camera } from 'lucide-react'
+import { useState, useEffect } from 'react'
+import { RefreshCw, Globe, Folder, List, MessageSquare, Camera } from 'lucide-react'
 import axios from 'axios'
 
 const LAYERS = [

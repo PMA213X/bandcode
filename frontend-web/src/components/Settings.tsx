@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react'
-import { Save, RefreshCw } from 'lucide-react'
+import { useState, useEffect } from 'react'
+import { RefreshCw } from 'lucide-react'
 import axios from 'axios'
 
 interface SettingsData {
@@ -11,9 +11,7 @@ interface SettingsData {
 export default function Settings() {
   const [settings, setSettings] = useState<SettingsData>({})
   const [loading, setLoading] = useState(true)
-  const [saving, setSaving] = useState(false)
   const [activeSection, setActiveSection] = useState('模型设置')
-  const [modified, setModified] = useState(false)
 
   useEffect(() => {
     loadSettings()
@@ -33,18 +31,14 @@ export default function Settings() {
   }
 
   const handleSave = async (section: string, key: string, value: any) => {
-    setSaving(true)
     try {
       await axios.post('/api/settings', { section, key, value })
       setSettings(prev => ({
         ...prev,
         [section]: { ...prev[section], [key]: value }
       }))
-      setModified(false)
     } catch (error) {
       console.error('保存设置失败:', error)
-    } finally {
-      setSaving(false)
     }
   }
 
