@@ -102,7 +102,8 @@ export default function Chat({ onSwitchView }: ChatProps) {
   }
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter') {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault()
       handleSend()
     } else if (e.key === '/' && !input) {
       e.preventDefault()
@@ -175,7 +176,6 @@ export default function Chat({ onSwitchView }: ChatProps) {
             onKeyDown={handleKeyDown}
             placeholder="输入消息... (/ 打开命令面板)"
             className="input flex-1"
-            disabled={loading}
           />
           <button
             onClick={() => handleSend()}

@@ -33,18 +33,26 @@ function App() {
           </div>
         </header>
 
-        {/* 内容区 */}
+        {/* 内容区 — 用 CSS display 控制显隐，避免组件卸载丢失状态 */}
         <div className="flex-1 overflow-auto">
-          {currentView === 'chat' && (
-            <Chat
-              onSwitchView={(view) => setCurrentView(view as View)}
-            />
-          )}
-          {currentView === 'settings' && <Settings />}
-          {currentView === 'memory' && <MemoryView />}
-          {currentView === 'history' && <History />}
-          {currentView === 'model-test' && <ModelTest />}
-          {currentView === 'files' && <FileExplorer />}
+          <div style={{ display: currentView === 'chat' ? 'flex' : 'none', flexDirection: 'column', height: '100%' }}>
+            <Chat onSwitchView={(view) => setCurrentView(view as View)} />
+          </div>
+          <div style={{ display: currentView === 'settings' ? 'block' : 'none', height: '100%' }}>
+            <Settings />
+          </div>
+          <div style={{ display: currentView === 'memory' ? 'block' : 'none', height: '100%' }}>
+            <MemoryView />
+          </div>
+          <div style={{ display: currentView === 'history' ? 'block' : 'none', height: '100%' }}>
+            <History />
+          </div>
+          <div style={{ display: currentView === 'model-test' ? 'block' : 'none', height: '100%' }}>
+            <ModelTest />
+          </div>
+          <div style={{ display: currentView === 'files' ? 'block' : 'none', height: '100%' }}>
+            <FileExplorer />
+          </div>
         </div>
       </main>
     </div>
