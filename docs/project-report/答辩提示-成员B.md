@@ -38,7 +38,18 @@ AI 开发工程师 A（RAG 方向）
 
 ### 可能的问题
 
-1. 为什么选择 ChromaDB 而不是 FAISS？
-2. chunk_size 如何确定？
-3. 如何评估 RAG 效果？
-4. 如何处理知识库更新？
+**Q1: 为什么选择 ChromaDB 而不是 FAISS？**
+
+A: ChromaDB 是专为 AI 应用设计的向量数据库，相比 FAISS 有几个优势：一是内置持久化支持（PersistentClient），数据自动保存到磁盘，无需手动 save_local；二是支持元数据过滤（where 条件检索），可以按文档来源、类型等维度精确筛选；三是提供了 get_or_create_collection 等简洁 API，开发效率更高。项目中使用 cosine 距离（hnsw:space: cosine）进行相似度计算。
+
+**Q2: chunk_size 如何确定？**
+
+A: 项目中 DocumentChunker 的 max_chunk_size 默认为 1000 字符，overlap 为 100 字符。这个值是根据实际业务场景调优的结果：产品信息和 FAQ 通常每条 200-500 字，chunk_size=1000 可以完整保留一条产品信息或一组 FAQ；overlap=100 确保切分边界处的语义连贯。切分器支持按段落切分（chunk_by_paragraph）和按句子切分（chunk_by_sentence）两种模式，超长文本会自动在句号处断开。
+
+**Q3: 如何评估 RAG 效果？**
+
+A: 通过以下方式评估：一是检索质量，使用 SearchResult 的 score 字段（余弦相似度，1 - distance）衡量检索结果与查询的相关性，score 越高表示越相关；二是端到端测试，构造典型用户问题（如"熏鹅有哪些口味"），验证检索结果是否包含正确答案；三是通过 ModelTest 组件进行在线测试，观察流式输出的回答质量。
+
+**Q4: 如何处理知识库更新？**
+
+A: RAGIndexer 提供了三个层级的索引接口：index_file 索引单个文件、index_documents 索引多条文档、index_directory 批量索引目录下所有匹配文件（默认 *.md）。更新时只需重新调用索引接口，ChromaDB 会自动处理向量的添加和更新。索引器还会记录元数据（source、filename），方便追溯文档来源。通过 get_stats 方法可以查看当前索引的总 chunk 数量。

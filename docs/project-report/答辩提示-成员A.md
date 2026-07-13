@@ -43,7 +43,18 @@
 
 ### 可能的问题
 
-1. 为什么选择 LangChain 而不是自研？
-2. 如何保证回答准确性？
-3. 如何处理并发请求？
-4. 项目有什么创新点？
+**Q1: 为什么选择 LangChain 而不是自研？**
+
+A: LangChain 是成熟的 LLM 应用开发框架，提供了 PromptTemplate、RetrievalQA、AgentExecutor 等丰富组件，可以快速搭建 RAG 和 Agent 系统。自研框架需要大量开发时间且稳定性无法保证。LangChain 社区活跃、文档完善，遇到问题容易找到解决方案，同时与 LangGraph 配合良好，支持复杂的状态流转和多 Agent 编排。
+
+**Q2: 如何保证回答准确性？**
+
+A: 通过 RAG 技术将知识库文档向量化后存入 ChromaDB，用户提问时先检索相关文档片段作为上下文注入 Prompt，减少大模型幻觉。同时设置了 Top-K 相似度检索策略，返回最相关的文档片段。知识库内容来自官方产品文档和客服标准话术，确保信息权威性。
+
+**Q3: 如何处理并发请求？**
+
+A: 后端基于 FastAPI 框架，天然支持异步并发处理。聊天接口使用 asyncio.create_task() 启动后台任务处理 Agent 工作流，通过 asyncio.Queue 在处理函数和 SSE 生成器之间传递事件，不会阻塞主线程。LLM 调用使用 AsyncOpenAI 异步客户端，支持高并发场景。
+
+**Q4: 项目有什么创新点？**
+
+A: 主要创新点有三个：一是采用六层分层记忆架构（global/project/task/session/checkpoint/notes），让 Agent 具备长期记忆能力；二是 8 节点工作流管线设计（约束检索→RAG→Prompt 构建→Planner→审批→子 Agent→Tester→Review），实现了完整的代码生成质量保障闭环；三是 Review 修正循环机制，当审查发现违规时自动反馈给 Planner 重新生成，最多重试 3 次。
