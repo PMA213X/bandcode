@@ -39,7 +39,18 @@
 
 ### 可能的问题
 
-1. 如何实现 SSE 流式接收？
-2. 如何处理 API 请求失败？
-3. 如何优化大量数据的渲染性能？
-4. 如何实现文件浏览器的目录树？
+**Q1: 如何实现 SSE 流式接收？**
+
+A: 前端使用浏览器原生的 EventSource API 接收 SSE 事件。后端通过 sse-starlette 库的 EventSourceResponse 返回 SSE 流，事件格式为 `event: <类型>\ndata: <JSON>\n\n`。前端通过 addEventListener 监听不同事件类型（如 text、agent_start、done 等），实时更新 UI 状态。后端使用 asyncio.Queue 在处理函数和 SSE 生成器之间传递事件，push_done 函数会放入 None 作为结束信号，sse_generator 检测到 None 后终止生成。
+
+**Q2: 如何处理 API 请求失败？**
+
+A: 项目在多个层面处理 API 失败：一是 LLMClient 的 _handle_error 方法将 API 错误分类处理（AuthenticationError 返回 API Key 无效提示、APIConnectionError 返回网络连接错误提示、429 返回频率超限提示等），返回用户友好的错误消息；二是后端全局异常处理器 register_error_handlers 统一捕获未处理异常，返回统一格式的错误响应 {code, data, message}；三是前端通过 SSE 的 error 事件类型（chat_error）接收错误信息并展示给用户。
+
+**Q3: 如何优化大量数据的渲染性能？**
+
+A: 通过以下方式优化：一是 MemoryView 组件支持按层级（global/project/task/session/checkpoint/notes）分别展示，避免一次性渲染所有数据；二是 History 组件支持分页加载（limit/offset 参数），后端 /api/chat/history 接口返回 has_more 字段指示是否还有更多数据；三是搜索功能在后端实现（MemoryStore.search_memory），只返回匹配的结果片段，减少前端数据传输量；四是 React 条件渲染，只在用户切换到对应 Tab 时才加载数据。
+
+**Q4: 如何实现文件浏览器的目录树？**
+
+A: FileExplorer 组件通过递归渲染实现目录树。后端 /api/workspace 接口提供工作区信息，/api/workspace/list 接口列出指定目录下的文件和子目录。前端通过递归组件展示目录结构，每个目录节点可以展开/折叠。WorkspaceInfo 组件显示当前工作区路径。文件树使用 Lucide React 图标库区分文件和目录类型，支持点击文件导航到对应路径。

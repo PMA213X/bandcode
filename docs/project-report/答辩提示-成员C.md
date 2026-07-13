@@ -47,7 +47,18 @@ AI 开发工程师 B（Agent 方向）
 
 ### 可能的问题
 
-1. 为什么选择 LangGraph 而不是自研状态机？
-2. 意图识别的准确率如何保证？
-3. 如何处理工具调用失败？
-4. 如何扩展新的意图类型？
+**Q1: 为什么选择 LangGraph 而不是自研状态机？**
+
+A: 项目采用了自研的 Pipeline 工作流管线（workflow/pipeline.py），而非直接使用 LangGraph。Pipeline 设计了 8 个节点顺序执行（约束检索→RAG→Prompt 构建→Planner→审批→子 Agent→Tester→Review），通过 PipelineState dataclass 在节点间传递状态。这种设计比 LangGraph 更轻量，不需要额外依赖，且 PipelineState 的字段定义（user_input、constraints、rag_context、plan、review_result 等）完全贴合业务需求。同时支持 run_with_review_loop 实现 Review 修正循环。
+
+**Q2: 意图识别的准确率如何保证？**
+
+A: 意图识别基于 LLM 实现，通过精心设计的 System Prompt 引导模型进行分类。Planner Agent 负责分析用户需求并拆解任务，其提示词文件（agents/planner.md）定义了明确的意图类型和判断标准。同时通过 RAG 检索相关知识作为上下文辅助判断，提高识别准确率。PipelineState 中的 plan 字段记录了 Planner 的分析结果，包括任务列表和委派的 Agent。
+
+**Q3: 如何处理工具调用失败？**
+
+A: 工具调用失败的处理是多层的：首先 ToolRegistry.call 方法会捕获异常并返回 ToolResult(success=False, error=str(e))；其次 BaseAgent.call_tool 会记录错误日志并重新抛出异常；最后 Pipeline 的 run 方法会捕获节点执行异常，将错误信息写入 state.error 并终止执行。ToolResult 数据结构统一了成功和失败的返回格式，包含 success、data、error、execution_time 四个字段。
+
+**Q4: 如何扩展新的意图类型？**
+
+A: 扩展新的意图类型非常简单：一是编写新的 Agent 类，继承 BaseAgent 并实现 run 方法，在 agents/ 目录下创建新的 Python 文件即可，AgentManager 会通过 auto_discover 方法自动扫描并注册；二是如果需要新的工具，在 tools/builtins/ 目录下创建新的 Tool 子类，ToolRegistry 会自动发现并注册；三是更新 Planner 的提示词文件，添加新的意图类型和对应的 Agent 委派逻辑。整个过程无需修改框架代码。
