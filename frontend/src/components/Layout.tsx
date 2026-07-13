@@ -5,9 +5,9 @@
  */
 
 // 导入 React
-import React, { useState } from "react";
-// 导入 Ink 终端 UI 组件和 Hooks
-import { Box, Text, useInput, useApp } from "ink";
+import React from "react";
+// 导入 Ink 终端 UI 组件
+import { Box, Text } from "ink";
 
 /**
  * 视图模式类型定义
@@ -40,39 +40,11 @@ const VIEW_LABELS: Record<ViewMode, string> = {
 };
 
 /**
- * 视图快捷键映射表
- * 数字键 1/2/3 对应切换到不同视图
- */
-const VIEW_SHORTCUTS: Record<string, ViewMode> = {
-  "1": "chat",      // 按 1 切换到对话视图
-  "2": "settings",  // 按 2 切换到设置视图
-  "3": "memory",    // 按 3 切换到记忆视图
-};
-
-/**
  * Layout 布局主组件
  * 提供三段式布局：标题栏 + 内容区 + 状态栏
+ * 注意：键盘输入由 App.tsx 统一处理，避免 useInput 冲突
  */
 export function Layout({ children, currentView = "chat", onViewChange }: LayoutProps) {
-  // 获取 Ink 应用退出方法
-  const { exit } = useApp();
-
-  /**
-   * 键盘输入处理
-   * 处理快捷键：Ctrl+C 退出，数字键切换视图
-   */
-  useInput((inputChar, key) => {
-    // Ctrl+C：退出应用
-    if (key.ctrl && inputChar === "c") {
-      exit();
-      return;
-    }
-
-    // 数字键：切换视图
-    if (VIEW_SHORTCUTS[inputChar]) {
-      onViewChange?.(VIEW_SHORTCUTS[inputChar]);
-    }
-  });
 
   /**
    * 渲染布局结构

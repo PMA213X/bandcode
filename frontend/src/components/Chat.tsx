@@ -213,8 +213,8 @@ export function Chat({ sessionId = "default", project = "default" }: ChatProps) 
         return newInput;
       });
     }
-    // 普通字符：追加到输入内容（排除 Ctrl 和 Meta 组合键）
-    else if (!key.ctrl && !key.meta) {
+    // 普通字符：追加到输入内容（排除 Ctrl/Meta 组合键和数字快捷键 1/2/3）
+    else if (!key.ctrl && !key.meta && !['1', '2', '3'].includes(inputChar)) {
       setInput((prev) => {
         const newInput = prev + inputChar;
         handleInputChange(newInput);
