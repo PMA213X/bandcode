@@ -18,7 +18,7 @@ BandCode 通过六层 Memory 系统和六个智能体的协作，实现项目级
 
 ## 技术栈
 
-- **前端**：React 18 + Ink 4 + TypeScript
+- **前端**：React 18 + Vite + Tailwind CSS + TypeScript
 - **后端**：Python 3.11 + FastAPI
 - **数据库**：SQLite + ChromaDB
 - **AI 模型**：MiMo v2.5 Pro
@@ -43,7 +43,7 @@ cd backend
 pip install -r requirements.txt
 
 # 安装前端依赖
-cd ../frontend
+cd ../frontend-web
 npm install
 ```
 
@@ -82,7 +82,7 @@ cp settings.example.json settings.json
 - 安装后端/前端依赖
 - 创建配置文件（如果不存在）
 - 启动后端服务（后台）
-- 启动前端 CLI
+- 启动前端 Web 界面并自动打开浏览器
 
 #### 方式二：手动启动
 
@@ -92,8 +92,9 @@ cd backend
 python main.py
 
 # 启动前端（新终端）
-cd frontend
+cd frontend-web
 npm run dev
+# 浏览器访问 http://localhost:3000
 ```
 
 ### 配置说明
@@ -121,16 +122,18 @@ bandcode/
 │   ├── tests/             # 测试文件
 │   ├── tools/             # Tool 系统
 │   └── workflow/          # Workflow 管线
-├── frontend/               # 前端 CLI
+├── frontend-web/            # 前端 Web 界面
 │   ├── src/
 │   │   ├── components/    # UI 组件
-│   │   ├── hooks/         # React Hooks
-│   │   ├── services/      # API 服务
-│   │   ├── styles/        # 样式定义
-│   │   ├── types/         # TypeScript 类型
-│   │   └── utils/         # 工具函数
+│   │   ├── App.tsx        # 主应用组件
+│   │   ├── main.tsx       # 入口文件
+│   │   └── index.css      # 全局样式
+│   ├── index.html
 │   ├── package.json
-│   └── tsconfig.json
+│   ├── tsconfig.json
+│   ├── vite.config.ts
+│   ├── tailwind.config.js
+│   └── postcss.config.js
 ├── agents/                 # Agent 定义文件
 ├── tools/                  # Tool 定义文件
 ├── memory/                 # Memory 数据（运行时）

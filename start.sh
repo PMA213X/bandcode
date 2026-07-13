@@ -38,7 +38,7 @@ echo "  ✅ 后端依赖已安装"
 
 # 安装前端依赖
 echo "[4/5] 安装前端依赖..."
-pushd frontend > /dev/null
+pushd frontend-web > /dev/null
 if [ ! -d "node_modules" ]; then
     npm install --silent
 else
@@ -74,8 +74,9 @@ BACKEND_PID=$!
 sleep 3
 
 # 启动前端
-echo "🚀 启动前端 CLI..."
-pushd frontend > /dev/null
+echo "🚀 启动前端 (http://localhost:3000)..."
+pushd frontend-web > /dev/null
+(sleep 2 && open http://localhost:3000) &
 npm run dev
 popd > /dev/null
 

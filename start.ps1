@@ -32,7 +32,7 @@ Write-Host "  ✅ 后端依赖已安装" -ForegroundColor Green
 
 # 安装前端依赖
 Write-Host "[4/5] 安装前端依赖..." -ForegroundColor Yellow
-Push-Location frontend
+Push-Location frontend-web
 if (-not (Test-Path "node_modules")) {
     npm install --silent
 } else {
@@ -67,7 +67,8 @@ Start-Process python -ArgumentList "backend/main.py" -WindowStyle Hidden
 Start-Sleep -Seconds 3
 
 # 启动前端
-Write-Host "🚀 启动前端 CLI..." -ForegroundColor Green
-Push-Location frontend
+Write-Host "🚀 启动前端 (http://localhost:3000)..." -ForegroundColor Green
+Push-Location frontend-web
+Start-Process "http://localhost:3000"
 npm run dev
 Pop-Location

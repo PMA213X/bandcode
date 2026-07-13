@@ -1,0 +1,133 @@
+import React, { useState, useRef, useEffect } from 'react'
+import { Send, Bot, User } from 'lucide-react'
+import axios from 'axios'
+
+interface Message {
+  id: string
+  role: 'user' | 'assistant'
+  content: string
+  agent?: string
+  timestamp: Date
+}
+
+export default function Chat() {
+  const [messages, setMessages] = useState<Message[]>([])
+  const [input, setInput] = useState('')
+  const [loading, setLoading] = useState(false)
+  const messagesEndRef = useRef<HTMLDivElement>(null)
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }
+
+  useEffect(() => {
+    scrollToBottom()
+  }, [messages])
+
+  const handleSend = async () => {
+    if (!input.trim() || loading) return
+
+    const userMessage: Message = {
+      id: Date.now().toString(),
+      role: 'user',
+      content: input,
+      timestamp: new Date(),
+    }
+
+    setMessages(prev => [...prev, userMessage])
+    setInput('')
+    setLoading(true)
+
+    try {
+      // SSE 请求
+      const eventSource = new EventSource(
+        `/api/chat/stream?message=${encodeURIComponent(input)}`
+      )
+
+      eventSource.onmessage = (event) => {
+        const data = JSON.parse(event.data)
+        // 处理 SSE 事件
+        console.log('SSE:', data)
+      }
+
+      eventSource.onerror = () => {
+        eventSource.close()
+        setLoading(false)
+      }
+    } catch (error) {
+      console.error('Error:', error)
+      setLoading(false)
+    }
+  }
+
+  return (
+    <div className="flex flex-col h-full">
+      {/* 消息列表 */}
+      <div className="flex-1 overflow-auto p-4 space-y-4">
+        {messages.length === 0 && (
+          <div className="text-center text-gray-500 mt-20">
+            <Bot size={48} className="mx-auto mb-4 opacity-50" />
+            <p className="text-lg">输入消息开始对话...</p>
+            <p className="text-sm mt-2">使用 / 打开命令面板</p>
+          </div>
+        )}
+        
+        {messages.map((msg) => (
+          <div
+            key={msg.id}
+            className={`flex gap-3 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
+          >
+            {msg.role === 'assistant' && (
+              <div className="w-8 h-8 rounded-full bg-cyan-600 flex items-center justify-center">
+                <Bot size={16} />
+              </div>
+            )}
+            
+            <div
+              className={`max-w-[70%] rounded-lg px-4 py-2 ${
+                msg.role === 'user'
+                  ? 'bg-cyan-600 text-white'
+                  : 'bg-gray-700 text-gray-100'
+              }`}
+            >
+              <pre className="whitespace-pre-wrap font-sans">{msg.content}</pre>
+              <div className="text-xs opacity-50 mt-1">
+                {msg.timestamp.toLocaleTimeString()}
+              </div>
+            </div>
+            
+            {msg.role === 'user' && (
+              <div className="w-8 h-8 rounded-full bg-gray-600 flex items-center justify-center">
+                <User size={16} />
+              </div>
+            )}
+          </div>
+        ))}
+        
+        <div ref={messagesEndRef} />
+      </div>
+      
+      {/* 输入框 */}
+      <div className="border-t border-gray-700 p-4">
+        <div className="flex gap-2">
+          <input
+            type="text"
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && handleSend()}
+            placeholder="输入消息... (/ 打开命令面板)"
+            className="input flex-1"
+            disabled={loading}
+          />
+          <button
+            onClick={handleSend}
+            disabled={loading || !input.trim()}
+            className="btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <Send size={20} />
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
