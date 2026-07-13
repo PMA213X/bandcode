@@ -12,6 +12,8 @@ settings.json
 .mimo/checkpoints/
 .mimo/notes/
 .mimo/tasks/
+memory/sessions/
+memory/projects/
 
 # === Python ===
 __pycache__/
