@@ -2,6 +2,7 @@
   "name": "bandcode-frontend",
   "version": "0.1.0",
   "description": "BandCode - 基于分层记忆与六智能体协作的 AI 编程助手 CLI",
+  "type": "module",
   "main": "dist/main.js",
   "scripts": {
     "dev": "tsx src/main.tsx",

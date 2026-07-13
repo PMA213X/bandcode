@@ -56,27 +56,18 @@ export function ApprovalDialog({
 
   return (
     <Box flexDirection="column" borderStyle="double" padding={1}>
-      {/* 标题：审批提示 */}
       <Text color="yellow" bold>[审批] 需要确认</Text>
-
-      {/* Agent 信息 */}
       <Box marginTop={1}>
         <Text>即将委派 </Text>
         <Text color="cyan" bold>{label}</Text>
         <Text> 执行任务</Text>
       </Box>
-
-      {/* 审批原因 */}
       <Box marginTop={1}>
         <Text color="gray">原因: {reason}</Text>
       </Box>
-
-      {/* 执行计划 */}
       <Box marginTop={1}>
         <Text color="gray">计划: {plan}</Text>
       </Box>
-
-      {/* 操作按钮 */}
       <Box marginTop={1}>
         <Text color="green">[Y] 确认 </Text>
         <Text color="red">[N] 取消</Text>

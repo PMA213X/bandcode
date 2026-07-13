@@ -79,43 +79,33 @@ export function Layout({ children, currentView = "chat", onViewChange }: LayoutP
    * 三段式布局：标题栏 + 内容区 + 状态栏
    */
   return (
-    // 主容器：垂直布局，占满终端高度
     <Box flexDirection="column" height="100%">
-      {/* 顶部标题栏：显示应用名称和当前视图 */}
       <Box
-        flexDirection="row"           // 水平布局
-        justifyContent="space-between" // 两端对齐
-        alignItems="center"           // 垂直居中
-        paddingX={1}                  // 左右内边距
-        borderBottom                   // 底部边框
+        flexDirection="row"
+        justifyContent="space-between"
+        alignItems="center"
+        paddingX={1}
+        borderBottom
       >
-        {/* 应用名称：青色加粗显示 */}
         <Text color="cyan" bold>
           BandCode
         </Text>
-        {/* 当前视图和快捷键提示：灰色显示 */}
         <Text color="gray">
           {VIEW_LABELS[currentView]} | 1:对话 2:设置 3:记忆 Ctrl+C:退出
         </Text>
       </Box>
-
-      {/* 主内容区域：垂直布局，占满剩余空间 */}
       <Box flexDirection="column" flexGrow={1} overflow="hidden">
-        {children} {/* 渲染子组件 */}
+        {children}
       </Box>
-
-      {/* 底部状态栏：显示版本号和当前时间 */}
       <Box
-        flexDirection="row"           // 水平布局
-        justifyContent="space-between" // 两端对齐
-        paddingX={1}                  // 左右内边距
-        borderTop                     // 顶部边框
+        flexDirection="row"
+        justifyContent="space-between"
+        paddingX={1}
+        borderTop
       >
-        {/* 版本号：灰色暗淡显示 */}
         <Text color="gray" dimColor>
           v1.0.0
         </Text>
-        {/* 当前时间：灰色暗淡显示，中文格式 */}
         <Text color="gray" dimColor>
           {new Date().toLocaleTimeString("zh-CN")}
         </Text>
@@ -139,17 +129,13 @@ interface StatusBarProps {
  */
 export function StatusBar({ project, session, isConnected }: StatusBarProps) {
   return (
-    // 水平布局，两端对齐
     <Box flexDirection="row" justifyContent="space-between" paddingX={1}>
-      {/* 项目名称：灰色显示，未选择时显示提示 */}
       <Text color="gray" dimColor>
         项目: {project || "未选择"}
       </Text>
-      {/* 会话ID：截取前8位显示，无会话时显示提示 */}
       <Text color="gray" dimColor>
         会话: {session ? session.slice(0, 8) + "..." : "无"}
       </Text>
-      {/* 连接状态：已连接显示绿色，断开显示红色 */}
       <Text color={isConnected ? "green" : "red"}>
         {isConnected ? "● 已连接" : "○ 断开"}
       </Text>
@@ -172,20 +158,14 @@ interface TabBarProps {
  */
 export function TabBar({ tabs, activeTab, onTabChange }: TabBarProps) {
   return (
-    // 水平布局，左内边距
     <Box flexDirection="row" paddingX={1}>
-      {/* 遍历渲染每个标签 */}
       {tabs.map((tab) => (
-        // 标签容器：右侧外边距
         <Box key={tab.key} marginRight={2}>
-          {/* 标签文本：选中时青色加粗，未选中时灰色 */}
           <Text
             color={tab.key === activeTab ? "cyan" : "gray"}
             bold={tab.key === activeTab}
           >
-            {/* 图标（如果有） */}
             {tab.icon ? `${tab.icon} ` : ""}
-            {/* 标签文本 */}
             {tab.label}
           </Text>
         </Box>

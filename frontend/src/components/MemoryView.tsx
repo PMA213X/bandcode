@@ -52,16 +52,13 @@ const MemoryView: React.FC<MemoryViewProps> = ({ onClose }) => {
             <Box marginBottom={1}>
                 <Text color="cyan" bold>🧠 Memory 浏览器</Text>
             </Box>
-            
             <Box marginBottom={1}>
                 <Text color="gray">{'─'.repeat(60)}</Text>
             </Box>
-            
-            {/* 标签页 */}
             <Box marginBottom={1}>
                 {LAYERS.map((layer, index) => (
                     <Box key={layer.id} marginRight={2}>
-                        <Text 
+                        <Text
                             color={activeLayer === layer.id ? 'cyan' : 'gray'}
                             bold={activeLayer === layer.id}
                         >
@@ -71,12 +68,9 @@ const MemoryView: React.FC<MemoryViewProps> = ({ onClose }) => {
                     </Box>
                 ))}
             </Box>
-            
             <Box marginBottom={1}>
                 <Text color="gray">{'─'.repeat(60)}</Text>
             </Box>
-            
-            {/* 内容区 */}
             <Box flexDirection="column" flexGrow={1} borderStyle="round" borderColor="gray" paddingX={1} paddingY={1}>
                 {loading ? (
                     <Text color="yellow">加载中...</Text>
@@ -90,18 +84,14 @@ const MemoryView: React.FC<MemoryViewProps> = ({ onClose }) => {
                     <Text color="gray">暂无内容</Text>
                 )}
             </Box>
-            
-            {/* 状态栏 */}
             <Box marginTop={1}>
                 <Text color="gray">
                     {currentUpdatedAt && `更新时间: ${currentUpdatedAt}`}
                 </Text>
             </Box>
-            
             <Box marginTop={1}>
                 <Text color="gray">{'─'.repeat(60)}</Text>
             </Box>
-            
             <Box>
                 <Text color="gray">
                     [1-5] 切换层级 | [r] 刷新 | [q/Esc] 返回

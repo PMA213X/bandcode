@@ -273,7 +273,6 @@ export function Settings({ onClose, onSave }: SettingsProps) {
 
   return (
     <Box flexDirection="column" height="100%">
-      {/* 标题栏 */}
       <Box paddingX={1} paddingY={0}>
         <Text color={COLORS.primary} bold>
           {ICONS.settings} 设置
@@ -281,13 +280,10 @@ export function Settings({ onClose, onSave }: SettingsProps) {
         {saving && <Text color="yellow"> (保存中...)</Text>}
         {saveStatusText && <Text color={saveStatusColor}> {saveStatusText}</Text>}
       </Box>
-
       <Box>
         <Text color="gray">{"─".repeat(60)}</Text>
       </Box>
-
       <Box flexDirection="row" flexGrow={1}>
-        {/* 左侧：分类列表 */}
         <Box
           flexDirection="column"
           width={20}
@@ -307,24 +303,17 @@ export function Settings({ onClose, onSave }: SettingsProps) {
             </Box>
           ))}
         </Box>
-
-        {/* 右侧：设置项列表 */}
         <Box flexDirection="column" flexGrow={1} paddingX={1}>
           <Box marginBottom={1}>
             <Text color={COLORS.primary} bold>
               {categories[selectedCategory]?.name}
             </Text>
           </Box>
-
-          {/* 模型提供商选择（仅在模型设置分类时显示） */}
           {categories[selectedCategory]?.name === "模型设置" && (
             <Box flexDirection="column" marginBottom={1}>
               <Box>
                 <Text color="yellow">模型提供商: </Text>
-                <Text
-                  color="cyan"
-                  bold
-                >
+                <Text color="cyan" bold>
                   {selectedProvider
                     ? `${selectedProvider.icon} ${selectedProvider.name}`
                     : "按 p 选择提供商"}
@@ -339,7 +328,6 @@ export function Settings({ onClose, onSave }: SettingsProps) {
               )}
             </Box>
           )}
-
           {currentItems.map((item, i) => (
             <Box key={item.key} flexDirection="column">
               <Box>
@@ -355,7 +343,6 @@ export function Settings({ onClose, onSave }: SettingsProps) {
                 </Text>
                 {renderItemValue(item)}
               </Box>
-
               {i === selectedItem && item.description && (
                 <Box paddingLeft={2}>
                   <Text color="gray" italic>
@@ -367,15 +354,11 @@ export function Settings({ onClose, onSave }: SettingsProps) {
           ))}
         </Box>
       </Box>
-
-      {/* 底部状态栏 */}
       <Box paddingX={1}>
         <Text color="gray">
           ↑↓ 选择 | ←→ 切换分类 | Enter 编辑/切换 | r 刷新 | p 选择提供商 | Esc 退出
         </Text>
       </Box>
-
-      {/* 模型选择器覆盖层 */}
       {showModelSelector && (
         <ModelSelector
           onSelectProvider={(provider) => {

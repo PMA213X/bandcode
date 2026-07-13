@@ -233,11 +233,8 @@ export function Chat({ sessionId = "default", project = "default" }: ChatProps) 
   }
 
   return (
-    // 主容器：垂直布局，占满高度
     <Box flexDirection="column" height="100%">
-      {/* 消息列表区域：可滚动，占满剩余空间 */}
       <Box flexDirection="column" flexGrow={1} overflow="hidden">
-        {/* 空消息时显示提示文本 */}
         {messages.length === 0 && !isStreaming && (
           <Box padding={1}>
             <Text color="gray" italic>
@@ -245,16 +242,11 @@ export function Chat({ sessionId = "default", project = "default" }: ChatProps) 
             </Text>
           </Box>
         )}
-
-        {/* 渲染所有历史消息 */}
         {messages.map((msg) => (
           <MessageBubble key={msg.id} message={msg} />
         ))}
-
-        {/* 正在流式输出的实时消息 */}
         {isStreaming && currentMessage && (
           <Box flexDirection="column" paddingX={1}>
-            {/* 显示 Agent 状态列表（如果有） */}
             {agentEvents.length > 0 && (
               <Box marginBottom={1}>
                 <AgentStatusList
@@ -263,27 +255,20 @@ export function Chat({ sessionId = "default", project = "default" }: ChatProps) 
                 />
               </Box>
             )}
-            {/* 显示流式消息内容，末尾有光标闪烁 */}
             <Box>
               <Text color="cyan">{ROLE_ICONS.assistant} </Text>
               <Text color="white">{currentMessage}</Text>
-              <Text color="gray">{"█"}</Text> {/* 光标 */}
+              <Text color="gray">{"█"}</Text>
             </Box>
           </Box>
         )}
-
-        {/* 加载指示器：流式传输开始但尚未有内容时显示 */}
         {isStreaming && !currentMessage && (
           <Box paddingX={1}>
             <Text color="yellow">⟳ 正在处理...</Text>
           </Box>
         )}
-
-        {/* 消息列表底部锚点 */}
         <Box ref={messagesEndRef} />
       </Box>
-
-      {/* 命令面板 */}
       {showCommandPalette && (
         <CommandPalette
           commands={commands}
@@ -292,8 +277,6 @@ export function Chat({ sessionId = "default", project = "default" }: ChatProps) 
           onClose={closeCommandPalette}
         />
       )}
-
-      {/* 文件选择器 */}
       {showFileSelector && (
         <FileSelector
           query={fileQuery}
@@ -304,17 +287,13 @@ export function Chat({ sessionId = "default", project = "default" }: ChatProps) 
           onClose={closeFileSelector}
         />
       )}
-
-      {/* 分隔线：区分消息区和输入区 */}
       <Box>
         <Text color="gray">{"─".repeat(80)}</Text>
       </Box>
-
-      {/* 输入框区域：显示用户输入内容和光标 */}
       <Box paddingX={1} paddingY={0}>
-        <Text color="cyan">{">>> "} </Text>   {/* 输入提示符 */}
-        <Text color="white">{input}</Text>     {/* 用户输入内容 */}
-        <Text color="gray">{"█"}</Text>        {/* 光标 */}
+        <Text color="cyan">{">>> "}</Text>
+        <Text color="white">{input}</Text>
+        <Text color="gray">{"█"}</Text>
       </Box>
     </Box>
   );
@@ -344,20 +323,16 @@ function MessageBubble({ message }: MessageBubbleProps) {
     : "green"; // 助手消息使用绿色
 
   return (
-    // 消息容器：垂直布局，左右内边距，底部外边距
     <Box flexDirection="column" paddingX={1} marginBottom={1}>
       <Box>
-        {/* 角色图标（加粗显示） */}
         <Text color={agentColor} bold>
           {icon}{" "}
         </Text>
-        {/* Agent 名称标签（如果有） */}
         {message.agent && (
           <Text color={agentColor} dimColor>
             [{message.agent}]{" "}
           </Text>
         )}
-        {/* 消息内容 */}
         <Text color="white">{message.content}</Text>
       </Box>
     </Box>
