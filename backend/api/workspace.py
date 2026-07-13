@@ -6,8 +6,8 @@ from pydantic import BaseModel
 
 router = APIRouter(prefix="/workspace", tags=["workspace"])
 
-# 工作区路径（启动时设置）
-workspace_path = os.getcwd()
+# 工作区路径：优先使用环境变量（用户运行命令的目录），否则使用当前目录
+workspace_path = os.environ.get("BANDCODE_WORKSPACE", os.getcwd())
 
 
 class WorkspaceInfo(BaseModel):

@@ -1,5 +1,18 @@
 # BandCode 一键启动脚本 (Windows)
 
+# 记录用户运行命令的目录（作为工作区）
+$workspacePath = Get-Location
+
+# 切换到脚本所在目录（项目根目录）
+$scriptPath = Split-Path -Parent $MyInvocation.MyCommand.Path
+Set-Location $scriptPath
+Write-Host "📁 工作区目录: $workspacePath" -ForegroundColor Gray
+Write-Host "📁 项目目录: $scriptPath" -ForegroundColor Gray
+Write-Host ""
+
+# 设置环境变量，让后端知道工作区路径
+$env:BANDCODE_WORKSPACE = $workspacePath.Path
+
 Write-Host "========================================" -ForegroundColor Cyan
 Write-Host "  BandCode - AI 编程助手" -ForegroundColor Cyan
 Write-Host "========================================" -ForegroundColor Cyan
