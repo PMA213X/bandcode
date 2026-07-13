@@ -1,11 +1,11 @@
-import React, { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, type ReactNode, type KeyboardEvent } from 'react'
 import { Search, MessageSquare, Globe, Folder, List, Camera, RefreshCw, Trash2, Archive } from 'lucide-react'
 
 interface Command {
   id: string
   name: string
   description: string
-  icon: React.ReactNode
+  icon: ReactNode
   action: () => void
 }
 
@@ -123,7 +123,7 @@ export default function CommandPalette({ isOpen, onClose, onSendMessage, onSwitc
     setSelectedIndex(0)
   }, [search])
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
+  const handleKeyDown = (e: KeyboardEvent) => {
     if (e.key === 'Escape') {
       onClose()
     } else if (e.key === 'ArrowDown') {
