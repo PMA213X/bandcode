@@ -32,7 +32,7 @@ memory_manager = MemoryManager()
 
 @router.get("")
 async def get_memory(
-    project: str = Query(..., description="项目名称"),
+    project: Optional[str] = Query(None, description="项目名称"),
     layer: str = Query(..., description="Memory 层"),
 ):
     """
@@ -90,7 +90,7 @@ async def search_memory(
     根据关键词搜索 Memory 内容。
     """
     results = memory_manager.search(query, limit, type)
-    return {"code": 200, "data": results, "message": "搜索成功"}
+    return {"code": 0, "data": results, "message": "搜索成功"}
 
 
 @router.get("/recent")
@@ -104,7 +104,7 @@ async def get_recent_memory(
     获取最近的 Memory 条目。
     """
     results = memory_manager.get_recent(limit, type)
-    return {"code": 200, "data": results, "message": "获取成功"}
+    return {"code": 0, "data": results, "message": "获取成功"}
 
 
 @router.get("/stats")
@@ -115,7 +115,7 @@ async def get_memory_stats():
     获取 Memory 系统的统计信息。
     """
     stats = memory_manager.get_stats()
-    return {"code": 200, "data": stats, "message": "获取成功"}
+    return {"code": 0, "data": stats, "message": "获取成功"}
 
 
 @router.post("/compress")
@@ -126,7 +126,7 @@ async def compress_session(session_id: Optional[str] = None):
     压缩指定会话或当前会话的数据。
     """
     result = memory_manager.compress_session(session_id)
-    return {"code": 200, "data": result, "message": "压缩完成"}
+    return {"code": 0, "data": result, "message": "压缩完成"}
 
 
 @router.post("/clean")
@@ -137,4 +137,4 @@ async def clean_old_sessions(max_age_days: int = Query(7, description="最大保
     清理超过指定天数的旧会话。
     """
     cleaned = memory_manager.clean_old_sessions(max_age_days)
-    return {"code": 200, "data": {"cleaned": cleaned}, "message": "清理完成"}
+    return {"code": 0, "data": {"cleaned": cleaned}, "message": "清理完成"}

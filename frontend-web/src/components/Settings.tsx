@@ -22,7 +22,7 @@ export default function Settings() {
   const loadSettings = async () => {
     try {
       const response = await axios.get('/api/settings')
-      if (response.data.code === 200) {
+      if (response.data.code === 0) {
         setSettings(response.data.data)
       }
     } catch (error) {

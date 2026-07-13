@@ -24,7 +24,7 @@ export default function MemoryView() {
     setLoading(true)
     try {
       const response = await axios.get(`/api/memory?layer=${layer}`)
-      if (response.data.code === 200) {
+      if (response.data.code === 0) {
         setContent(response.data.data.content || '暂无内容')
       }
     } catch (error) {
@@ -40,7 +40,7 @@ export default function MemoryView() {
     setLoading(true)
     try {
       const response = await axios.get(`/api/memory/search?query=${encodeURIComponent(searchQuery)}`)
-      if (response.data.code === 200) {
+      if (response.data.code === 0) {
         setContent(JSON.stringify(response.data.data, null, 2))
       }
     } catch (error) {
