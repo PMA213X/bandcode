@@ -7,6 +7,8 @@ import React, { useState, useCallback } from "react";
 import { Box, Text, useInput, useApp } from "ink";
 import { COLORS, ICONS } from "../styles/colors";
 import { useSettings } from "../hooks/useSettings";
+import ModelSelector from "./ModelSelector";
+import { MODEL_PROVIDERS, ModelProvider, getProviderById } from "../utils/modelProviders";
 
 interface SettingsCategory {
   name: string;
@@ -108,6 +110,8 @@ export function Settings({ onSave }: SettingsProps) {
   const [selectedItem, setSelectedItem] = useState(0);
   const [isEditing, setIsEditing] = useState(false);
   const [editBuffer, setEditBuffer] = useState("");
+  const [showModelSelector, setShowModelSelector] = useState(false);
+  const [selectedProvider, setSelectedProvider] = useState<ModelProvider | null>(null);
 
   const { exit } = useApp();
 
@@ -210,6 +214,8 @@ export function Settings({ onSave }: SettingsProps) {
       handleSave();
     } else if (inputChar === "r" && !isEditing) {
       reloadSettings();
+    } else if (inputChar === "p" && !isEditing && categories[selectedCategory]?.name === "模型设置") {
+      setShowModelSelector(true);
     }
   });
 
@@ -307,6 +313,30 @@ export function Settings({ onSave }: SettingsProps) {
             </Text>
           </Box>
 
+          {/* 模型提供商选择（仅在模型设置分类时显示） */}
+          {categories[selectedCategory]?.name === "模型设置" && (
+            <Box flexDirection="column" marginBottom={1}>
+              <Box>
+                <Text color="yellow">模型提供商: </Text>
+                <Text
+                  color="cyan"
+                  bold
+                >
+                  {selectedProvider
+                    ? `${selectedProvider.icon} ${selectedProvider.name}`
+                    : "按 p 选择提供商"}
+                </Text>
+              </Box>
+              {selectedProvider && (
+                <Box paddingLeft={2}>
+                  <Text color="gray" italic>
+                    选择提供商后自动填充 Base URL 和默认模型
+                  </Text>
+                </Box>
+              )}
+            </Box>
+          )}
+
           {currentItems.map((item, i) => (
             <Box key={item.key} flexDirection="column">
               <Box>
@@ -338,9 +368,26 @@ export function Settings({ onSave }: SettingsProps) {
       {/* 底部状态栏 */}
       <Box paddingX={1}>
         <Text color="gray">
-          ↑↓ 选择 | ←→ 切换分类 | Enter 编辑/切换 | r 刷新 | Esc 退出
+          ↑↓ 选择 | ←→ 切换分类 | Enter 编辑/切换 | r 刷新 | p 选择提供商 | Esc 退出
         </Text>
       </Box>
+
+      {/* 模型选择器覆盖层 */}
+      {showModelSelector && (
+        <ModelSelector
+          onSelectProvider={(provider) => {
+            setSelectedProvider(provider);
+            if (provider.baseUrl) {
+              updateSetting("模型设置", "base_url", provider.baseUrl);
+            }
+          }}
+          onSelectModel={(model) => {
+            updateSetting("模型设置", "default_model", model.id);
+          }}
+          onClose={() => setShowModelSelector(false)}
+          selectedProviderId={selectedProvider?.id}
+        />
+      )}
     </Box>
   );
 }

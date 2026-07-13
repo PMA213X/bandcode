@@ -16,6 +16,7 @@ import { useCommands } from "../hooks/useCommands";
 import CommandPalette from "./CommandPalette";
 import FileSelector from "./FileSelector";
 // 导入类型定义
+import MemoryView from "./MemoryView";
 import type { ChatMessage, SSEEvent, AgentStartEvent } from "../types";
 
 /**
@@ -70,14 +71,26 @@ export function Chat({ sessionId, project }: ChatProps) {
   const [currentAgent, setCurrentAgent] = useState<string>("");
   // 消息列表底部引用，用于自动滚动
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  // 当前视图状态
+  const [currentView, setCurrentView] = useState<string>("chat");
 
   // 获取 Ink 应用退出方法
   const { exit } = useApp();
 
   // 导航函数，用于处理命令面板的命令执行
   const navigate = useCallback((view: string) => {
-    // TODO: 实现具体的导航逻辑
-    console.log(`Navigate to: ${view}`);
+    switch (view) {
+      case 'memory':
+      case 'memory-global':
+      case 'memory-project':
+        setCurrentView('memory');
+        break;
+      case 'settings':
+        setCurrentView('settings');
+        break;
+      default:
+        console.log(`Navigate to: ${view}`);
+    }
   }, []);
 
   // 命令面板 Hook
@@ -214,6 +227,11 @@ export function Chat({ sessionId, project }: ChatProps) {
    * 渲染聊天界面
    * 布局：消息列表 + 分隔线 + 输入框
    */
+  // Memory 视图
+  if (currentView === 'memory') {
+    return <MemoryView onClose={() => setCurrentView('chat')} />;
+  }
+
   return (
     // 主容器：垂直布局，占满高度
     <Box flexDirection="column" height="100%">
