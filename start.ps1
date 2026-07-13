@@ -59,12 +59,48 @@ Write-Host "  启动服务..." -ForegroundColor Cyan
 Write-Host "========================================" -ForegroundColor Cyan
 Write-Host ""
 
+# 检查端口 8000 是否被占用
+Write-Host "🔍 检查端口占用..." -ForegroundColor Yellow
+$port8000 = netstat -ano | Select-String ":8000\s.*LISTENING"
+if ($port8000) {
+    $pid = ($port8000 -split '\s+')[-1]
+    Write-Host "  ⚠️ 端口 8000 已被进程 $pid 占用，正在停止..." -ForegroundColor Yellow
+    Stop-Process -Id $pid -Force -ErrorAction SilentlyContinue
+    Start-Sleep -Seconds 1
+    Write-Host "  ✅ 端口已释放" -ForegroundColor Green
+}
+
 # 启动后端（后台）
 Write-Host "🚀 启动后端服务 (http://localhost:8000)..." -ForegroundColor Green
-Start-Process python -ArgumentList "backend/main.py" -WindowStyle Hidden
+$backendProc = Start-Process python -ArgumentList "backend/main.py" -PassThru -WindowStyle Hidden
 
 # 等待后端启动
-Start-Sleep -Seconds 3
+$maxWait = 15
+$waited = 0
+$backendReady = $false
+while ($waited -lt $maxWait) {
+    Start-Sleep -Seconds 1
+    $waited++
+    try {
+        $response = Invoke-WebRequest -Uri "http://localhost:8000/" -UseBasicParsing -TimeoutSec 2
+        if ($response.StatusCode -eq 200) {
+            $backendReady = $true
+            break
+        }
+    } catch {
+        # 继续等待
+    }
+}
+
+if ($backendReady) {
+    Write-Host "  ✅ 后端服务已启动" -ForegroundColor Green
+} else {
+    Write-Host "  ❌ 后端启动超时，请检查日志" -ForegroundColor Red
+    if ($backendProc -and !$backendProc.HasExited) {
+        Stop-Process -Id $backendProc.Id -Force -ErrorAction SilentlyContinue
+    }
+    exit 1
+}
 
 # 启动前端
 Write-Host "🚀 启动前端 (http://localhost:3000)..." -ForegroundColor Green
@@ -97,8 +133,13 @@ try {
     while ($true) { Start-Sleep -Seconds 2 }
 } finally {
     Write-Host "`n正在停止服务..." -ForegroundColor Yellow
+    if ($backendProc -and !$backendProc.HasExited) {
+        Stop-Process -Id $backendProc.Id -Force -ErrorAction SilentlyContinue
+        Write-Host "  ✅ 后端服务已停止" -ForegroundColor Green
+    }
     if ($frontendProc -and !$frontendProc.HasExited) {
         Stop-Process -Id $frontendProc.Id -Force -ErrorAction SilentlyContinue
+        Write-Host "  ✅ 前端服务已停止" -ForegroundColor Green
     }
-    Write-Host "✅ 服务已停止" -ForegroundColor Green
+    Write-Host "✅ 所有服务已停止" -ForegroundColor Green
 }
