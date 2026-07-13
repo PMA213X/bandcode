@@ -1,6 +1,6 @@
 /**
  * Chat.tsx - 聊天界面组件
- * 功能：消息列表展示、用户输入框、SSE流式消息输出、Agent状态显示
+ * 功能：消息列表展示、用户输入框、SSE流式消息输出、Agent状态显示、命令面板
  */
 
 // 导入 React 核心 Hooks
@@ -11,6 +11,10 @@ import { Box, Text, useInput, useApp } from "ink";
 import { AgentStatusList } from "./AgentStatus";
 // 导入 SSE Hook，用于处理服务器推送事件
 import { useSSE } from "../hooks/useSSE";
+// 导入命令面板相关组件和 Hook
+import { useCommands } from "../hooks/useCommands";
+import CommandPalette from "./CommandPalette";
+import FileSelector from "./FileSelector";
 // 导入类型定义
 import type { ChatMessage, SSEEvent, AgentStartEvent } from "../types";
 
@@ -69,6 +73,26 @@ export function Chat({ sessionId, project }: ChatProps) {
 
   // 获取 Ink 应用退出方法
   const { exit } = useApp();
+
+  // 导航函数，用于处理命令面板的命令执行
+  const navigate = useCallback((view: string) => {
+    // TODO: 实现具体的导航逻辑
+    console.log(`Navigate to: ${view}`);
+  }, []);
+
+  // 命令面板 Hook
+  const {
+    showCommandPalette,
+    commandQuery,
+    showFileSelector,
+    fileQuery,
+    commands,
+    handleInputChange,
+    handleCommandSelect,
+    handleFileSelect,
+    closeCommandPalette,
+    closeFileSelector,
+  } = useCommands(navigate);
 
   /**
    * 处理消息发送
@@ -159,17 +183,30 @@ export function Chat({ sessionId, project }: ChatProps) {
       return;
     }
 
+    // 命令面板或文件选择器打开时，不处理普通输入
+    if (showCommandPalette || showFileSelector) {
+      return;
+    }
+
     // 回车键：发送消息
     if (key.return) {
       handleSend(input);
     }
     // 退格键：删除最后一个字符
     else if (key.backspace) {
-      setInput((prev) => prev.slice(0, -1));
+      setInput((prev) => {
+        const newInput = prev.slice(0, -1);
+        handleInputChange(newInput);
+        return newInput;
+      });
     }
     // 普通字符：追加到输入内容（排除 Ctrl 和 Meta 组合键）
     else if (!key.ctrl && !key.meta) {
-      setInput((prev) => prev + inputChar);
+      setInput((prev) => {
+        const newInput = prev + inputChar;
+        handleInputChange(newInput);
+        return newInput;
+      });
     }
   });
 
@@ -227,6 +264,28 @@ export function Chat({ sessionId, project }: ChatProps) {
         {/* 消息列表底部锚点 */}
         <Box ref={messagesEndRef} />
       </Box>
+
+      {/* 命令面板 */}
+      {showCommandPalette && (
+        <CommandPalette
+          commands={commands}
+          query={commandQuery}
+          onSelect={handleCommandSelect}
+          onClose={closeCommandPalette}
+        />
+      )}
+
+      {/* 文件选择器 */}
+      {showFileSelector && (
+        <FileSelector
+          query={fileQuery}
+          onSelect={(file) => {
+            const path = handleFileSelect(file);
+            setInput((prev) => prev.replace(/@[^@]*$/, path));
+          }}
+          onClose={closeFileSelector}
+        />
+      )}
 
       {/* 分隔线：区分消息区和输入区 */}
       <Box>
