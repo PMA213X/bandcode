@@ -69,6 +69,36 @@ Start-Sleep -Seconds 3
 # 启动前端
 Write-Host "🚀 启动前端 (http://localhost:3000)..." -ForegroundColor Green
 Push-Location frontend-web
-Start-Process "http://localhost:3000"
-npm run dev
+$frontendProc = Start-Process npm -ArgumentList "run","dev" -PassThru -WorkingDirectory (Get-Location) -WindowStyle Hidden
+
+# 等待前端服务器就绪
+$maxWait = 30
+$waited = 0
+while ($waited -lt $maxWait) {
+    $listening = netstat -ano | Select-String ":3000\s.*LISTENING"
+    if ($listening) { break }
+    Start-Sleep -Seconds 1
+    $waited++
+}
+
 Pop-Location
+
+if ($waited -ge $maxWait) {
+    Write-Host "  ⚠️ 前端启动超时，请手动访问 http://localhost:3000" -ForegroundColor Yellow
+} else {
+    Start-Process "http://localhost:3000"
+    Write-Host "  ✅ 前端已启动" -ForegroundColor Green
+}
+
+# 保持脚本运行，直到用户按 Ctrl+C 后清理进程
+Write-Host ""
+Write-Host "按 Ctrl+C 停止所有服务" -ForegroundColor Gray
+try {
+    while ($true) { Start-Sleep -Seconds 2 }
+} finally {
+    Write-Host "`n正在停止服务..." -ForegroundColor Yellow
+    if ($frontendProc -and !$frontendProc.HasExited) {
+        Stop-Process -Id $frontendProc.Id -Force -ErrorAction SilentlyContinue
+    }
+    Write-Host "✅ 服务已停止" -ForegroundColor Green
+}
