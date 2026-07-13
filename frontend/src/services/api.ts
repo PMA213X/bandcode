@@ -170,10 +170,47 @@ class ApiClient {
    * 搜索 Memory 内容
    * @param query - 搜索关键词
    * @param limit - 返回数量限制（可选）
+   * @param type - 条目类型过滤（可选）
    * @returns 搜索结果数组，包含相关度分数
    */
-  async searchMemory(query: string, limit?: number): Promise<ApiResponse<Array<Record<string, any>>>> {
-    return this.get("/api/memory/search", { query, limit });
+  async searchMemory(query: string, limit: number = 10, type?: string): Promise<ApiResponse<any>> {
+    return this.get("/api/memory/search", { query, limit, type });
+  }
+
+  /**
+   * 获取最近记忆
+   * @param limit - 返回数量限制（可选）
+   * @param type - 条目类型过滤（可选）
+   * @returns 最近的记忆条目
+   */
+  async getRecentMemory(limit: number = 20, type?: string): Promise<ApiResponse<any>> {
+    return this.get("/api/memory/recent", { limit, type });
+  }
+
+  /**
+   * 获取 Memory 统计信息
+   * @returns 统计信息
+   */
+  async getMemoryStats(): Promise<ApiResponse<any>> {
+    return this.get("/api/memory/stats");
+  }
+
+  /**
+   * 压缩 Memory 会话
+   * @param sessionId - 会话 ID（可选）
+   * @returns 压缩结果
+   */
+  async compressMemory(sessionId?: string): Promise<ApiResponse<any>> {
+    return this.post("/api/memory/compress", { session_id: sessionId });
+  }
+
+  /**
+   * 清理过期 Memory 会话
+   * @param maxAgeDays - 最大保留天数（默认 7 天）
+   * @returns 清理结果
+   */
+  async cleanMemory(maxAgeDays: number = 7): Promise<ApiResponse<any>> {
+    return this.post("/api/memory/clean", { max_age_days: maxAgeDays });
   }
 
   /**

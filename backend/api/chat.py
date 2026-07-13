@@ -39,10 +39,15 @@ from api.sse import (
     push_done,  # 推送完成事件
     push_error,  # 推送错误事件
 )
+# 导入 Memory Manager
+from memory.manager import MemoryManager
 
 # 创建路由器，prefix="/chat" 表示所有路由以 /chat 开头
 # tags=["聊天"] 用于 API 文档分组
 router = APIRouter(prefix="/chat", tags=["聊天"])
+
+# 全局 MemoryManager 实例
+memory_manager = MemoryManager()
 
 
 class ChatStreamRequest(BaseModel):
@@ -97,6 +102,9 @@ async def process_chat(
         event_queue: SSE 事件队列
     """
     try:
+        # ========== 记录用户消息到 Memory ==========
+        memory_manager.record_conversation("user", message)
+
         # ========== 第1步：Constraint Agent 检索约束 ==========
         # 推送 Agent 开始事件
         await push_agent_start(event_queue, "constraint", "running")
@@ -158,6 +166,9 @@ async def process_chat(
         # ========== 第7步：完成 ==========
         # 推送完成事件，同时会发送结束信号（None）
         await push_done(event_queue, session_id, f"已处理消息：{message}")
+
+        # ========== 记录助手回复到 Memory ==========
+        memory_manager.record_conversation("assistant", f"已处理：{message}", agent="complex_coder")
 
         # ========== 保存聊天历史 ==========
         # 如果会话不存在，创建新的会话

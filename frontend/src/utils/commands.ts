@@ -102,6 +102,34 @@ export function createCommands(navigate: (view: string) => void): Command[] {
             category: 'memory',
             action: () => navigate('memory-project'),
         },
+        {
+            name: 'memory search',
+            description: '搜索记忆',
+            icon: '🔍',
+            category: 'memory',
+            action: () => navigate('memory-search'),
+        },
+        {
+            name: 'memory recent',
+            description: '查看最近记忆',
+            icon: '📋',
+            category: 'memory',
+            action: () => navigate('memory-recent'),
+        },
+        {
+            name: 'memory stats',
+            description: 'Memory 统计',
+            icon: '📊',
+            category: 'memory',
+            action: () => navigate('memory-stats'),
+        },
+        {
+            name: 'memory compress',
+            description: '压缩当前会话',
+            icon: '🗜️',
+            category: 'memory',
+            action: () => navigate('memory-compress'),
+        },
         
         // Agent 命令
         {
