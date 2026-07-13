@@ -63,9 +63,9 @@ Write-Host ""
 Write-Host "🔍 检查端口占用..." -ForegroundColor Yellow
 $port8000 = netstat -ano | Select-String ":8000\s.*LISTENING"
 if ($port8000) {
-    $pid = ($port8000 -split '\s+')[-1]
-    Write-Host "  ⚠️ 端口 8000 已被进程 $pid 占用，正在停止..." -ForegroundColor Yellow
-    Stop-Process -Id $pid -Force -ErrorAction SilentlyContinue
+    $portPid = ($port8000 -split '\s+')[-1]
+    Write-Host "  ⚠️ 端口 8000 已被进程 $portPid 占用，正在停止..." -ForegroundColor Yellow
+    Stop-Process -Id $portPid -Force -ErrorAction SilentlyContinue
     Start-Sleep -Seconds 1
     Write-Host "  ✅ 端口已释放" -ForegroundColor Green
 }
