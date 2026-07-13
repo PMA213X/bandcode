@@ -8,7 +8,7 @@ import { Box, Text, useInput, useApp } from "ink";
 import { COLORS, ICONS } from "../styles/colors";
 import { useSettings } from "../hooks/useSettings";
 import ModelSelector from "./ModelSelector";
-import { MODEL_PROVIDERS, ModelProvider, getProviderById } from "../utils/modelProviders";
+import { ModelProvider } from "../utils/modelProviders";
 
 interface SettingsCategory {
   name: string;
@@ -117,11 +117,12 @@ export function Settings({ onClose, onSave }: SettingsProps) {
   const { exit } = useApp();
 
   // 从后端数据构建分类列表，后端没有的字段使用默认值
+  const settingsData = apiSettings as Record<string, Record<string, any>> | null;
   const categories: SettingsCategory[] = Object.entries(CATEGORY_META).map(([name, meta]) => ({
     name,
     items: meta.items.map((item) => ({
       ...item,
-      value: apiSettings?.[name]?.[item.key] ?? "",
+      value: settingsData?.[name]?.[item.key] ?? "",
     })),
   }));
 
@@ -163,11 +164,18 @@ export function Settings({ onClose, onSave }: SettingsProps) {
   }, [categories, onSave]);
 
   useInput((inputChar, key) => {
+    // Ctrl+C 退出
     if (key.ctrl && inputChar === "c") {
       exit();
       return;
     }
 
+    // 模型选择器打开时，将所有输入交给 ModelSelector 处理
+    if (showModelSelector) {
+      return;
+    }
+
+    // Escape 键
     if (key.escape) {
       if (isEditing) {
         setIsEditing(false);
@@ -180,17 +188,20 @@ export function Settings({ onClose, onSave }: SettingsProps) {
       return;
     }
 
+    // 编辑模式下的输入处理
     if (isEditing) {
       if (key.return) {
         handleEditConfirm();
-      } else if (key.backspace) {
+      } else if (key.backspace || key.delete) {
         setEditBuffer((prev) => prev.slice(0, -1));
-      } else if (!key.ctrl && !key.meta) {
+      } else if (inputChar && !key.ctrl && !key.meta && !key.upArrow && !key.downArrow && !key.leftArrow && !key.rightArrow && !key.tab && !key.escape) {
+        // 只有当 inputChar 非空且不是特殊键时才追加字符
         setEditBuffer((prev) => prev + inputChar);
       }
       return;
     }
 
+    // 导航模式
     if (key.upArrow) {
       setSelectedItem((prev) => (prev > 0 ? prev - 1 : currentItems.length - 1));
     } else if (key.downArrow) {
@@ -209,7 +220,6 @@ export function Settings({ onClose, onSave }: SettingsProps) {
         } else if (currentItem.type === "select" && currentItem.options) {
           handleSelectNext(sectionName, currentItem.key, currentItem.value, currentItem.options);
         } else if (sectionName === "模型设置" && currentItem.key === "default_model") {
-          // 模型设置分类下选择默认模型时，打开模型选择器
           setShowModelSelector(true);
         } else {
           setIsEditing(true);
@@ -218,9 +228,9 @@ export function Settings({ onClose, onSave }: SettingsProps) {
       }
     } else if (key.tab) {
       handleSave();
-    } else if (inputChar === "r" && !isEditing) {
+    } else if (inputChar === "r") {
       reloadSettings();
-    } else if (inputChar === "p" && !isEditing && categories[selectedCategory]?.name === "模型设置") {
+    } else if (inputChar === "p" && categories[selectedCategory]?.name === "模型设置") {
       setShowModelSelector(true);
     }
   });
