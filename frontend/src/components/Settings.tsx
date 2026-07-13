@@ -208,6 +208,9 @@ export function Settings({ onClose, onSave }: SettingsProps) {
           handleToggle(sectionName, currentItem.key, currentItem.value);
         } else if (currentItem.type === "select" && currentItem.options) {
           handleSelectNext(sectionName, currentItem.key, currentItem.value, currentItem.options);
+        } else if (sectionName === "模型设置" && currentItem.key === "default_model") {
+          // 模型设置分类下选择默认模型时，打开模型选择器
+          setShowModelSelector(true);
         } else {
           setIsEditing(true);
           setEditBuffer(String(currentItem.value));
