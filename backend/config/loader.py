@@ -36,13 +36,20 @@ class ConfigLoader:
         settings: 配置数据字典
     """
     
-    def __init__(self, settings_path: str = "settings.json"):
+    def __init__(self, settings_path: str = None):
         """
         初始化配置加载器
         
         Args:
-            settings_path: 配置文件路径，默认为 "settings.json"
+            settings_path: 配置文件路径，默认为项目根目录的 settings.json
         """
+        if settings_path is None:
+            # 优先使用项目根目录的 settings.json
+            root_settings = Path(__file__).parent.parent.parent / "settings.json"
+            if root_settings.exists():
+                settings_path = root_settings
+            else:
+                settings_path = "settings.json"
         # 将路径字符串转换为 Path 对象
         self.settings_path = Path(settings_path)
         # 加载配置

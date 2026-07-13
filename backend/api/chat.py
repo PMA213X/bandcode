@@ -16,6 +16,10 @@
 import asyncio
 # 导入 JSON 序列化模块
 import json
+# 导入日志模块
+import logging
+# 导入时间模块
+from datetime import datetime
 # 导入 FastAPI 路由和查询参数
 from fastapi import APIRouter, Query
 # 导入 Pydantic 数据验证模型
@@ -36,13 +40,25 @@ from api.sse import (
     push_test_result,  # 推送测试结果事件
     push_review_result,  # 推送审查结果事件
     push_memory_update,  # 推送 Memory 更新事件
+    push_text,  # 推送 LLM 流式文本事件
     push_done,  # 推送完成事件
     push_error,  # 推送错误事件
 )
+# 导入 Memory Manager
+from memory.manager import MemoryManager
+# 导入配置加载器
+from config.loader import get_config
+# 导入 LLM 客户端
+from models.llm import LLMClient
+
+logger = logging.getLogger("bandcode.chat")
 
 # 创建路由器，prefix="/chat" 表示所有路由以 /chat 开头
 # tags=["聊天"] 用于 API 文档分组
 router = APIRouter(prefix="/chat", tags=["聊天"])
+
+# 全局 MemoryManager 实例
+memory_manager = MemoryManager()
 
 
 class ChatStreamRequest(BaseModel):
@@ -76,20 +92,40 @@ class ChatMessage(BaseModel):
 chat_history: dict[str, List[dict]] = {}
 
 
+def _build_llm_client(agent_name: str = "default") -> LLMClient:
+    """根据配置构建 LLM 客户端"""
+    config = get_config()
+    model_settings = config.get_section("模型设置")
+    base_url = model_settings.get("Base URL", "")
+    api_key = model_settings.get("API Key", "")
+
+    model_map = {
+        "planner": model_settings.get("Planner 模型", model_settings.get("默认模型", "")),
+        "complex_coder": model_settings.get("ComplexCoder 模型", model_settings.get("默认模型", "")),
+        "simple_coder": model_settings.get("SimpleCoder 模型", model_settings.get("默认模型", "")),
+        "tester": model_settings.get("Tester 模型", model_settings.get("默认模型", "")),
+        "default": model_settings.get("默认模型", ""),
+    }
+    model = model_map.get(agent_name, model_map["default"])
+
+    return LLMClient(base_url=base_url, api_key=api_key, model=model)
+
+
+def _get_chat_history_messages(session_id: str) -> List[dict]:
+    """将会话历史转换为 LLM 消息格式"""
+    history = chat_history.get(session_id, [])
+    messages = []
+    for msg in history:
+        messages.append({"role": msg["role"], "content": msg["content"]})
+    return messages
+
+
 async def process_chat(
     session_id: str, project: str, message: str, event_queue: asyncio.Queue
 ):
     """
-    处理聊天请求（模拟 Agent 工作流）
-    
-    这是聊天处理的核心函数，模拟了完整的 Agent 工作流：
-    1. Constraint Agent - 检索相关约束
-    2. Planner Agent - 分析需求、生成计划
-    3. ComplexCoder Agent - 生成代码
-    4. Tester Agent - 运行测试
-    5. Review Agent - 审查代码
-    6. Memory 更新 - 更新会话记忆
-    
+    处理聊天请求 - 调用 LLM API 生成回复
+
     Args:
         session_id: 会话 ID
         project: 项目名称
@@ -97,95 +133,72 @@ async def process_chat(
         event_queue: SSE 事件队列
     """
     try:
+        # ========== 记录用户消息到历史 ==========
+        if session_id not in chat_history:
+            chat_history[session_id] = []
+
+        chat_history[session_id].append({
+            "id": len(chat_history[session_id]),
+            "role": "user",
+            "content": message,
+            "created_at": datetime.now().isoformat(),
+        })
+
+        # ========== 记录用户消息到 Memory ==========
+        memory_manager.record_conversation("user", message)
+
         # ========== 第1步：Constraint Agent 检索约束 ==========
-        # 推送 Agent 开始事件
         await push_agent_start(event_queue, "constraint", "running")
-        # 模拟约束检索延迟
-        await asyncio.sleep(0.3)
-        # 推送约束检索结果
         await push_constraint_result(
             event_queue,
             constraints=["代码必须使用中文注释", "API 返回统一格式 {code, data, message}"],
             summary="找到 2 条相关约束",
         )
 
-        # ========== 第2步：Planner Agent 生成计划 ==========
-        # 推送 Planner 开始事件
+        # ========== 第2步：Planner Agent 分析需求 ==========
         await push_agent_start(event_queue, "planner", "running")
-        # 模拟计划生成延迟
-        await asyncio.sleep(0.3)
-        # 推送计划事件，包含任务列表和委派的 Agent
         await push_plan(
             event_queue,
-            tasks=["分析用户需求", "检索相关约束", "生成代码方案", "执行代码生成"],
+            tasks=["分析用户需求", "生成回复"],
             delegated_agent="complex_coder",
         )
 
-        # ========== 第3步：ComplexCoder Agent 生成代码 ==========
-        # 推送 ComplexCoder 开始事件
+        # ========== 第3步：调用 LLM 生成回复 ==========
         await push_agent_start(event_queue, "complex_coder", "running")
-        # 模拟代码生成延迟
-        await asyncio.sleep(0.5)
-        # 推送工具调用事件
-        await push_tool_call(event_queue, "write_file", {"path": "output.py"})
-        # 推送代码生成事件
-        await push_code(
-            event_queue,
-            file="output.py",
-            content=f"# 处理消息: {message}\nprint('Hello from BandCode!')",
-        )
 
-        # ========== 第4步：Tester Agent 运行测试 ==========
-        # 推送 Tester 开始事件
-        await push_agent_start(event_queue, "tester", "running")
-        # 模拟测试执行延迟
-        await asyncio.sleep(0.3)
-        # 推送测试结果事件
-        await push_test_result(
-            event_queue, status="passed", tests_total=1, tests_passed=1
-        )
+        llm_client = _build_llm_client("complex_coder")
+        llm_messages = _get_chat_history_messages(session_id)
 
-        # ========== 第5步：Review Agent 审查代码 ==========
-        # 推送审查结果事件
-        await push_review_result(event_queue, status="passed", violations=[])
+        full_response = ""
+        try:
+            async for chunk in llm_client.chat_stream(llm_messages):
+                full_response += chunk
+                await push_text(event_queue, chunk, agent="complex_coder")
+        except Exception as llm_error:
+            logger.error(f"LLM 调用失败: {llm_error}")
+            await push_error(event_queue, f"LLM 调用失败: {str(llm_error)}")
+            return
 
-        # ========== 第6步：更新 Memory ==========
-        # 推送 Memory 更新事件
+        # ========== 第4步：记录助手回复到历史 ==========
+        chat_history[session_id].append({
+            "id": len(chat_history[session_id]),
+            "role": "assistant",
+            "agent": "complex_coder",
+            "content": full_response,
+            "created_at": datetime.now().isoformat(),
+        })
+
+        # ========== 第5步：更新 Memory ==========
+        memory_manager.record_conversation("assistant", full_response, agent="complex_coder")
         await push_memory_update(
             event_queue, layers=["session", "checkpoint"], message="已更新会话记忆"
         )
 
-        # ========== 第7步：完成 ==========
-        # 推送完成事件，同时会发送结束信号（None）
+        # ========== 第6步：完成 ==========
         await push_done(event_queue, session_id, f"已处理消息：{message}")
 
-        # ========== 保存聊天历史 ==========
-        # 如果会话不存在，创建新的会话
-        if session_id not in chat_history:
-            chat_history[session_id] = []
-
-        # 添加用户消息到历史
-        chat_history[session_id].append(
-            {
-                "id": len(chat_history[session_id]),  # 消息 ID
-                "role": "user",  # 用户角色
-                "content": message,  # 消息内容
-                "created_at": "2026-07-10T08:55:00",  # 创建时间
-            }
-        )
-        # 添加助手回复到历史
-        chat_history[session_id].append(
-            {
-                "id": len(chat_history[session_id]),  # 消息 ID
-                "role": "assistant",  # 助手角色
-                "agent": "complex_coder",  # 处理消息的 Agent
-                "content": f"已处理：{message}",  # 回复内容
-                "created_at": "2026-07-10T08:55:01",  # 创建时间
-            }
-        )
-
     except Exception as e:
-        # 如果发生错误，推送错误事件
+        logger.exception(f"处理聊天请求失败: {e}")
         await push_error(event_queue, str(e))
 
 
@@ -228,44 +241,57 @@ async def chat_stream(
 
 @router.get("/history")
 async def get_chat_history(
-    session_id: str = Query("default", description="会话ID"),
+    session_id: Optional[str] = Query(None, description="会话ID，不传则返回会话列表"),
     limit: int = Query(50, description="返回数量"),
     offset: int = Query(0, description="偏移量"),
 ):
     """
     获取聊天历史接口
-    
-    获取指定会话的聊天记录，支持分页。
-    
-    Args:
-        session_id: 会话 ID（默认为 "default"）
-        limit: 返回的消息数量（默认为 50）
-        offset: 偏移量（默认为 0）
-    
-    Returns:
-        包含聊天历史的响应：
-        - session_id: 会话 ID
-        - messages: 消息列表
-        - total: 消息总数
-        - has_more: 是否还有更多消息
+
+    不传 session_id 时返回会话列表，传入时返回该会话的消息。
     """
-    # 获取指定会话的聊天历史，如果不存在返回空列表
+    if session_id is None:
+        # 返回会话列表
+        sessions = []
+        for sid, messages in chat_history.items():
+            last_message = messages[-1]["content"] if messages else None
+            sessions.append({
+                "session_id": sid,
+                "created_at": messages[0]["created_at"] if messages else "",
+                "message_count": len(messages),
+                "last_message": last_message,
+            })
+        # 按创建时间倒序
+        sessions.sort(key=lambda s: s["created_at"], reverse=True)
+        return {
+            "code": 0,
+            "data": {"sessions": sessions},
+            "message": "ok",
+        }
+
+    # 返回指定会话的消息
     history = chat_history.get(session_id, [])
-    # 计算消息总数
     total = len(history)
-    # 分页获取消息
     paginated = history[offset : offset + limit]
-    # 判断是否还有更多消息
     has_more = offset + limit < total
 
-    # 返回统一格式的响应
     return {
-        "code": 0,  # 状态码，0 表示成功
+        "code": 0,
         "data": {
-            "session_id": session_id,  # 会话 ID
-            "messages": paginated,  # 消息列表
-            "total": total,  # 消息总数
-            "has_more": has_more,  # 是否还有更多消息
+            "session_id": session_id,
+            "messages": paginated,
+            "total": total,
+            "has_more": has_more,
         },
-        "message": "ok",  # 提示信息
+        "message": "ok",
     }
+
+
+@router.delete("/history")
+async def delete_chat_history(
+    session_id: str = Query(..., description="要删除的会话ID"),
+):
+    """删除指定会话的聊天历史"""
+    if session_id in chat_history:
+        del chat_history[session_id]
+    return {"code": 0, "data": None, "message": "ok"}

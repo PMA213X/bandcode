@@ -1,116 +1,109 @@
-# BandCode
+# 熏掌门 AI 智能客服与业务助理系统
 
-基于分层记忆与六智能体协作的 AI 编程助手 CLI 工具。
+## 项目简介
 
-## 项目概述
+本项目面向武夷山非遗食品品牌「熏掌门」，设计并实现一套基于大语言模型、LangChain、LangGraph 和 RAG 技术的 AI 智能客服与业务助理系统。
 
-BandCode 通过六层 Memory 系统和六个智能体的协作，实现项目级的长期记忆和智能代码生成。
+系统可以回答产品信息、口味、价格、物流、储存方式等用户问题，并通过知识库检索降低大模型幻觉。同时系统能够识别用户意图，根据不同业务场景调用知识库、订单查询、产品推荐等不同工具。
 
-### 核心特性
+### 解决的问题
 
-- **分层 Memory 系统**：Global → Project → Task → Session → Checkpoint → Notes
-- **六 Agent 协作**：Planner / SimpleCoder / ComplexCoder / Tester / Constraint / Review
-- **RAG 知识库**：支持知识库文档的自动索引和检索
-- **SSE 流式输出**：全程 Server-Sent Events 推送
-- **配置驱动**：Agent、Tool、Workflow 均通过配置定义
+- 熏掌门目前主要通过微信、抖音、小红书等渠道销售非遗熏鹅产品
+- 用户咨询过程中，大量问题高度重复（口味选择、储存方式、保质期、加热方式、物流时效等）
+- 人工客服重复回答效率低下
+- 缺乏统一的客户服务管理系统
+
+### 服务用户
+
+- 熏掌门的潜在客户和老客户
+- 通过微信、抖音、小红书等渠道咨询的用户
+- 需要了解产品信息、下单、售后服务的用户
+
+### AI 技术
+
+- **大语言模型**：DeepSeek Chat
+- **AI 框架**：LangChain + LangGraph
+- **RAG 技术**：FAISS/Chroma 向量数据库 + Embedding Model
+- **意图识别**：基于 LLM 的用户意图分类
+- **工具调用**：Function Calling 实现业务功能
+
+## 项目功能
+
+1. **智能问答**：基于大模型的自然语言问答
+2. **用户意图识别**：识别用户咨询、下单、售后等不同意图
+3. **企业知识库问答**：基于熏掌门产品知识库的精准回答
+4. **RAG 检索增强生成**：通过向量检索降低大模型幻觉
+5. **多轮对话记忆**：保持上下文连贯的多轮对话
+6. **产品推荐**：根据用户需求智能推荐产品
+7. **工具调用**：调用订单查询、库存查询等外部工具
+8. **LangGraph 状态流转**：基于状态图的复杂业务流程编排
+9. **对话日志记录**：完整的对话历史记录和分析
 
 ## 技术栈
 
-- **前端**：React 18 + Ink 4 + TypeScript
-- **后端**：Python 3.11 + FastAPI
-- **数据库**：SQLite + ChromaDB
-- **AI 模型**：MiMo v2.5 Pro
+| 类别 | 技术 |
+|------|------|
+| 开发语言 | Python 3.11 |
+| 大模型 | DeepSeek Chat |
+| AI 框架 | LangChain、LangGraph |
+| RAG | FAISS / Chroma、Embedding Model |
+| 前端 | Streamlit / Gradio |
+| 数据库 | SQLite |
+| 版本控制 | Git |
+| 开发工具 | VS Code |
 
-## 快速开始
+## 系统架构
 
-### 环境要求
+```mermaid
+graph TD
+    A[用户输入] --> B[意图识别]
+    B --> C{意图分类}
+    C -->|产品咨询| D[RAG 知识库检索]
+    C -->|订单查询| E[订单工具调用]
+    C -->|产品推荐| F[推荐工具调用]
+    C -->|闲聊| G[直接对话]
+    D --> H[大模型生成回答]
+    E --> H
+    F --> H
+    G --> H
+    H --> I[返回用户]
+```
 
-- Python 3.11+
-- Node.js 18+
-- Git
+## 项目运行方法
 
-### 安装
+### 1. 拉取代码
 
 ```bash
-# 克隆仓库
 git clone https://github.com/PMA213X/bandcode.git
 cd bandcode
+```
 
-# 安装后端依赖
-cd backend
+### 2. 安装依赖
+
+```bash
 pip install -r requirements.txt
-
-# 安装前端依赖
-cd ../frontend
-npm install
 ```
 
-### 配置
-
-1. 复制配置模板：
-```bash
-cp settings.example.json settings.json
-```
-
-2. 编辑 settings.json，填入你的 API Key：
-```json
-{
-  "模型设置": {
-    "API Key": "your-api-key-here"
-  }
-}
-```
-
-### 运行
+### 3. 配置环境变量
 
 ```bash
-# 启动后端
-cd backend
+cp .env.example .env
+```
+
+编辑 `.env` 文件：
+```
+DEEPSEEK_API_KEY=your_api_key
+```
+
+### 4. 启动
+
+```bash
+# 命令行版本
 python main.py
 
-# 启动前端（新终端）
-cd frontend
-npm run dev
+# Web 界面版本
+streamlit run app.py
 ```
-
-## 项目结构
-
-```
-bandcode/
-├── backend/                # 后端服务
-│   ├── agents/            # Agent 实现
-│   ├── api/               # API 路由
-│   ├── config/            # 配置加载
-│   ├── database/          # 数据库操作
-│   ├── memory/            # Memory 系统
-│   ├── models/            # 数据模型
-│   ├── rag/               # RAG 引擎
-│   ├── tests/             # 测试文件
-│   ├── tools/             # Tool 系统
-│   └── workflow/          # Workflow 管线
-├── frontend/               # 前端 CLI
-│   ├── src/
-│   │   ├── components/    # UI 组件
-│   │   ├── hooks/         # React Hooks
-│   │   ├── services/      # API 服务
-│   │   ├── styles/        # 样式定义
-│   │   ├── types/         # TypeScript 类型
-│   │   └── utils/         # 工具函数
-│   ├── package.json
-│   └── tsconfig.json
-├── agents/                 # Agent 定义文件
-├── tools/                  # Tool 定义文件
-├── docs/                   # 项目文档
-├── knowledge/              # RAG 知识库
-└── settings.example.json   # 配置模板
-```
-
-## 文档
-
-- [开发规范](docs/doc-spec.md)
-- [Git 提交规范](docs/git-commit-spec.md)
-- [团队成员](docs/team-members.md)
-- [开发规划](docs/development-plan.md)
 
 ## 团队成员
 
@@ -126,8 +119,10 @@ bandcode/
 
 ## 版本历史
 
-- v0.0.1 (2026-07-06)：项目初始化
-- v0.1.0 (2026-07-12)：核心功能完成
+| 版本 | 日期 | 说明 |
+|------|------|------|
+| v0.1.0 | 2026-07-13 | 核心功能完成 |
+| v1.0.0 | 2026-07-20 | 正式发布 |
 
 ## 许可证
 

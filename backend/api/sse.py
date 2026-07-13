@@ -54,8 +54,9 @@ class SSEEventType:
     
     # 记忆和状态相关事件
     MEMORY_UPDATE = "memory_update"  # Memory 更新
+    TEXT = "text"  # LLM 流式文本输出
     DONE = "done"  # 任务完成
-    ERROR = "error"  # 错误
+    ERROR = "chat_error"  # 错误（避免与 SSE 内置 error 事件冲突）
 
 
 # ==================== SSE 事件数据模型 ====================
@@ -162,6 +163,17 @@ class MemoryUpdateEvent(BaseModel):
     """
     layers: List[str]  # 更新的 Memory 层
     message: str  # 更新消息
+
+
+class TextEvent(BaseModel):
+    """
+    LLM 流式文本事件
+
+    当 LLM 流式输出文本块时触发
+    用于前端实时显示 AI 回复
+    """
+    content: str  # 文本内容
+    agent: Optional[str] = None  # 处理消息的 Agent
 
 
 class DoneEvent(BaseModel):
@@ -532,6 +544,19 @@ async def push_memory_update(
     """
     data = MemoryUpdateEvent(layers=layers, message=message).model_dump()
     await push_event(event_queue, SSEEventType.MEMORY_UPDATE, data)
+
+
+async def push_text(event_queue: asyncio.Queue, content: str, agent: Optional[str] = None) -> None:
+    """
+    推送 LLM 流式文本事件
+
+    Args:
+        event_queue: 事件队列
+        content: 文本内容
+        agent: 处理消息的 Agent
+    """
+    data = TextEvent(content=content, agent=agent).model_dump()
+    await push_event(event_queue, SSEEventType.TEXT, data)
 
 
 async def push_done(event_queue: asyncio.Queue, session_id: str, summary: str) -> None:

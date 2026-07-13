@@ -107,6 +107,10 @@ from api.project import router as project_router
 from api.tools import router as tools_router
 # 用户 API：创建用户
 from api.users import router as users_router
+# 测试 API：模型测试
+from api.test import router as test_router
+# 工作区 API：获取和管理工作区路径
+from api.workspace import router as workspace_router
 
 # 将所有路由注册到应用中
 app.include_router(chat_router, prefix="/api")
@@ -115,6 +119,8 @@ app.include_router(memory_router, prefix="/api")
 app.include_router(project_router, prefix="/api")
 app.include_router(tools_router, prefix="/api")
 app.include_router(users_router, prefix="/api")
+app.include_router(test_router, prefix="/api")
+app.include_router(workspace_router, prefix="/api")
 
 
 # ==================== 启动服务器 ====================
