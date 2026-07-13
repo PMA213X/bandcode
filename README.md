@@ -13,6 +13,8 @@ BandCode 通过六层 Memory 系统和六个智能体的协作，实现项目级
 - **RAG 知识库**：支持知识库文档的自动索引和检索
 - **SSE 流式输出**：全程 Server-Sent Events 推送
 - **配置驱动**：Agent、Tool、Workflow 均通过配置定义
+- **命令式交互**：输入 `/` 打开命令面板，`@` 选择文件
+- **自动 Memory**：自动记录对话、工具调用、决策，支持搜索和压缩
 
 ## 技术栈
 
@@ -63,6 +65,27 @@ cp settings.example.json settings.json
 
 ### 运行
 
+#### 方式一：一键启动（推荐）
+
+**Windows：**
+```powershell
+.\start.ps1
+```
+
+**Linux/Mac：**
+```bash
+./start.sh
+```
+
+一键启动脚本会自动：
+- 检查 Python 和 Node.js 环境
+- 安装后端/前端依赖
+- 创建配置文件（如果不存在）
+- 启动后端服务（后台）
+- 启动前端 CLI
+
+#### 方式二：手动启动
+
 ```bash
 # 启动后端
 cd backend
@@ -72,6 +95,16 @@ python main.py
 cd frontend
 npm run dev
 ```
+
+### 配置说明
+
+首次运行时，一键启动脚本会自动创建 `settings.json` 配置文件。
+
+你也可以通过前端界面配置：
+- 输入 `/settings` 打开设置面板
+- 选择模型提供商（MiMo/OpenAI/DeepSeek/Claude/Qwen）
+- 输入 API Key
+- 设置会自动保存到后端
 
 ## 项目结构
 
@@ -100,8 +133,14 @@ bandcode/
 │   └── tsconfig.json
 ├── agents/                 # Agent 定义文件
 ├── tools/                  # Tool 定义文件
+├── memory/                 # Memory 数据（运行时）
+│   └── global/            # 全局 Memory 模板
 ├── docs/                   # 项目文档
 ├── knowledge/              # RAG 知识库
+├── start.ps1               # Windows 一键启动脚本
+├── start.sh                # Linux/Mac 一键启动脚本
+├── CHANGELOG.md            # 更新日志
+├── README.md               # 项目说明
 └── settings.example.json   # 配置模板
 ```
 
