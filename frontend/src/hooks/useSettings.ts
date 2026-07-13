@@ -34,13 +34,14 @@ export function useSettings() {
       if (response.code === 0) {
         setSettings((prev) => {
           if (!prev) return prev;
+          const prevRecord = prev as unknown as Record<string, Record<string, any>>;
           return {
             ...prev,
             [section]: {
-              ...prev[section],
+              ...(prevRecord[section] || {}),
               [key]: value,
             },
-          } as SettingsResponse;
+          } as unknown as SettingsResponse;
         });
         setSaveStatus("success");
         setTimeout(() => setSaveStatus("idle"), 2000);

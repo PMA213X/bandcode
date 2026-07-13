@@ -31,6 +31,8 @@ class TestModelRequest(BaseModel):
 def _build_test_llm_client(model: Optional[str] = None) -> LLMClient:
     """构建测试用的 LLM 客户端"""
     config = get_config()
+    # 重新加载配置以确保使用最新的设置
+    config.reload()
     model_settings = config.get_section("模型设置")
     base_url = model_settings.get("Base URL", "")
     api_key = model_settings.get("API Key", "")
@@ -39,6 +41,8 @@ def _build_test_llm_client(model: Optional[str] = None) -> LLMClient:
         model_name = model
     else:
         model_name = model_settings.get("默认模型", "")
+    
+    logger.info(f"构建测试 LLM 客户端: base_url={base_url}, model={model_name}, api_key={'***' if api_key else '(空)'}")
     
     return LLMClient(base_url=base_url, api_key=api_key, model=model_name)
 
@@ -61,6 +65,7 @@ async def test_model(request: TestModelRequest):
         - model: 使用的模型名称
     """
     start_time = datetime.now()
+    logger.info(f"收到模型测试请求: message={request.message[:50]}..., model={request.model}")
     
     try:
         # 构建 LLM 客户端
@@ -72,10 +77,12 @@ async def test_model(request: TestModelRequest):
         ]
         
         # 调用模型
+        logger.info(f"开始调用模型: {llm_client.model}")
         response = await llm_client.chat(messages)
         
         # 计算延迟
         latency = (datetime.now() - start_time).total_seconds() * 1000
+        logger.info(f"模型调用成功: latency={latency:.2f}ms")
         
         return {
             "code": 0,

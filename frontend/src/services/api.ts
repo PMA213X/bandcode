@@ -220,6 +220,23 @@ class ApiClient {
   async reloadSettings(): Promise<ApiResponse<null>> {
     return this.post("/api/settings/reload");
   }
+
+  /**
+   * 测试模型连接
+   * @param message - 测试消息（可选）
+   * @param model - 指定模型（可选）
+   * @returns 测试结果
+   */
+  async testModel(message?: string, model?: string): Promise<ApiResponse<{
+    success: boolean;
+    response: string | null;
+    latency: number;
+    model: string;
+    base_url: string;
+    error?: string;
+  }>> {
+    return this.post("/api/test/model", { message, model });
+  }
 }
 
 // 导出全局唯一的 API 客户端实例

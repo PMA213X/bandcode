@@ -7,6 +7,7 @@ import React, { useState, useCallback } from "react";
 import { Box, Text, useInput, useApp } from "ink";
 import { COLORS, ICONS } from "../styles/colors";
 import { useSettings } from "../hooks/useSettings";
+import { api } from "../services/api";
 import ModelSelector from "./ModelSelector";
 import { ModelProvider } from "../utils/modelProviders";
 
@@ -33,73 +34,55 @@ const CATEGORY_META: Record<string, { icon: string; items: Omit<SettingsItem, "v
   "模型设置": {
     icon: "🤖",
     items: [
-      { key: "default_model", label: "默认模型", type: "text", description: "默认使用的LLM模型" },
-      { key: "base_url", label: "Base URL", type: "text", description: "LLM API基础地址" },
-      { key: "api_key", label: "API Key", type: "text", description: "LLM API密钥" },
-      { key: "planner_model", label: "Planner 模型", type: "text", description: "规划调度Agent使用的模型" },
-      { key: "temperature", label: "温度参数", type: "number", description: "LLM生成温度，0-1之间" },
-      { key: "max_tokens", label: "最大Token数", type: "number", description: "单次生成最大Token数" },
-      { key: "timeout", label: "超时时间(秒)", type: "number", description: "LLM请求超时时间" },
-      { key: "max_retries", label: "最大重试次数", type: "number", description: "LLM请求失败重试次数" },
+      { key: "默认模型", label: "默认模型", type: "text", description: "默认使用的LLM模型" },
+      { key: "Base URL", label: "Base URL", type: "text", description: "LLM API基础地址" },
+      { key: "API Key", label: "API Key", type: "text", description: "LLM API密钥" },
+      { key: "Planner 模型", label: "Planner 模型", type: "text", description: "规划调度Agent使用的模型" },
+      { key: "SimpleCoder 模型", label: "SimpleCoder 模型", type: "text", description: "SimpleCoder使用的模型" },
+      { key: "ComplexCoder 模型", label: "ComplexCoder 模型", type: "text", description: "ComplexCoder使用的模型" },
+      { key: "Tester 模型", label: "Tester 模型", type: "text", description: "Tester使用的模型" },
     ],
   },
   "Agent 设置": {
     icon: "🧑‍💻",
     items: [
-      { key: "default_agent", label: "默认Agent", type: "select", options: ["planner", "simple-coder", "complex-coder"], description: "默认使用的Agent" },
-      { key: "approval_mode", label: "审批模式", type: "boolean", description: "高风险操作是否需要用户确认" },
-      { key: "max_iterations", label: "最大迭代次数", type: "number", description: "Agent最大迭代次数" },
-      { key: "auto_retry", label: "自动重试", type: "boolean", description: "失败时是否自动重试" },
-      { key: "verbose_logging", label: "详细日志", type: "boolean", description: "是否输出详细日志" },
-      { key: "agent_timeout", label: "Agent超时(秒)", type: "number", description: "单个Agent执行超时时间" },
-      { key: "parallel_agents", label: "并行Agent数", type: "number", description: "同时运行的Agent数量" },
+      { key: "默认Agent", label: "默认Agent", type: "select", options: ["planner", "simple-coder", "complex-coder"], description: "默认使用的Agent" },
+      { key: "审批模式", label: "审批模式", type: "boolean", description: "高风险操作是否需要用户确认" },
     ],
   },
   "Memory 设置": {
     icon: "🧠",
     items: [
-      { key: "auto_update_memory", label: "自动更新Memory", type: "boolean", description: "是否自动更新Memory" },
-      { key: "memory_compression", label: "Memory压缩", type: "boolean", description: "是否启用Memory压缩" },
-      { key: "compression_threshold", label: "压缩阈值", type: "number", description: "Memory条目数超过此值时压缩" },
-      { key: "global_memory_path", label: "Global Memory路径", type: "text", description: "全局Memory存储路径" },
-      { key: "project_memory_path", label: "Project Memory路径", type: "text", description: "项目Memory存储路径" },
-      { key: "task_memory_path", label: "Task Memory路径", type: "text", description: "任务Memory存储路径" },
-      { key: "session_memory_path", label: "Session Memory路径", type: "text", description: "会话Memory存储路径" },
+      { key: "自动更新Memory", label: "自动更新Memory", type: "boolean", description: "是否自动更新Memory" },
+      { key: "Memory压缩", label: "Memory压缩", type: "boolean", description: "是否启用Memory压缩" },
+      { key: "压缩阈值", label: "压缩阈值", type: "number", description: "Memory条目数超过此值时压缩" },
     ],
   },
   "Workflow 设置": {
     icon: "⚡",
     items: [
-      { key: "enable_constraint_search", label: "开启约束智能检索", type: "boolean", description: "是否启用Constraint Agent" },
-      { key: "enable_auto_review", label: "开启自动约束检查", type: "boolean", description: "是否启用Review Agent" },
-      { key: "auto_fix", label: "自动修正", type: "boolean", description: "Review失败时是否自动修正" },
-      { key: "max_review_iterations", label: "最大Review次数", type: "number", description: "Review最大迭代次数" },
-      { key: "enable_checkpoint", label: "开启快照管理", type: "boolean", description: "是否启用Checkpoint" },
-      { key: "checkpoint_interval", label: "快照间隔(秒)", type: "number", description: "自动创建快照的间隔" },
-      { key: "enable_rollback", label: "开启回滚功能", type: "boolean", description: "是否支持快照回滚" },
+      { key: "开启约束智能检索", label: "开启约束智能检索", type: "boolean", description: "是否启用Constraint Agent" },
+      { key: "开启自动约束检查", label: "开启自动约束检查", type: "boolean", description: "是否启用Review Agent" },
+      { key: "自动修正", label: "自动修正", type: "boolean", description: "Review失败时是否自动修正" },
+      { key: "最大修正次数", label: "最大修正次数", type: "number", description: "Review最大迭代次数" },
+      { key: "修正失败自动回滚", label: "修正失败自动回滚", type: "boolean", description: "是否支持自动回滚" },
+      { key: "自动更新文档", label: "自动更新文档", type: "boolean", description: "是否自动更新文档" },
+      { key: "Git提交建议", label: "Git提交建议", type: "boolean", description: "是否启用Git提交建议" },
     ],
   },
   "RAG 设置": {
     icon: "📚",
     items: [
-      { key: "knowledge_path", label: "知识库路径", type: "text", description: "知识库文档目录" },
-      { key: "retrieval_count", label: "检索数量", type: "number", description: "每次检索返回的文档数量" },
-      { key: "chunk_size", label: "分块大小", type: "number", description: "文档分块大小(字符)" },
-      { key: "chunk_overlap", label: "分块重叠", type: "number", description: "分块重叠大小(字符)" },
-      { key: "embedding_model", label: "Embedding模型", type: "text", description: "向量化使用的模型" },
-      { key: "enable_rerank", label: "开启重排序", type: "boolean", description: "是否对检索结果重排序" },
+      { key: "知识库路径", label: "知识库路径", type: "text", description: "知识库文档目录" },
+      { key: "检索数量", label: "检索数量", type: "number", description: "每次检索返回的文档数量" },
+      { key: "相似度阈值", label: "相似度阈值", type: "number", description: "相似度阈值（0-1）" },
     ],
   },
   "Tool 设置": {
     icon: "🔧",
     items: [
-      { key: "tools_path", label: "工具目录", type: "text", description: "自定义工具目录" },
-      { key: "enable_builtins", label: "启用内置工具", type: "boolean", description: "是否启用内置工具" },
-      { key: "read_permission", label: "读取权限", type: "select", options: ["allow", "deny", "ask"], description: "文件读取权限" },
-      { key: "write_permission", label: "写入权限", type: "select", options: ["allow", "deny", "ask"], description: "文件写入权限" },
-      { key: "bash_permission", label: "Bash权限", type: "select", options: ["allow", "deny", "ask"], description: "Bash命令执行权限" },
-      { key: "edit_permission", label: "编辑权限", type: "select", options: ["allow", "deny", "ask"], description: "文件编辑权限" },
-      { key: "max_file_size", label: "最大文件大小(KB)", type: "number", description: "允许操作的最大文件大小" },
+      { key: "工具目录", label: "工具目录", type: "text", description: "自定义工具目录" },
+      { key: "自动发现", label: "自动发现", type: "boolean", description: "是否自动发现新工具" },
     ],
   },
 };
@@ -113,6 +96,8 @@ export function Settings({ onClose, onSave }: SettingsProps) {
   const [editBuffer, setEditBuffer] = useState("");
   const [showModelSelector, setShowModelSelector] = useState(false);
   const [selectedProvider, setSelectedProvider] = useState<ModelProvider | null>(null);
+  const [testing, setTesting] = useState(false);
+  const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null);
 
   const { exit } = useApp();
 
@@ -162,6 +147,32 @@ export function Settings({ onClose, onSave }: SettingsProps) {
     });
     onSave?.(settingsMap);
   }, [categories, onSave]);
+
+  const handleTestModel = useCallback(async () => {
+    setTesting(true);
+    setTestResult(null);
+    try {
+      const response = await api.testModel();
+      if (response.code === 0 && response.data?.success) {
+        setTestResult({
+          success: true,
+          message: `测试成功 (${response.data.latency}ms) - ${response.data.model}`,
+        });
+      } else {
+        setTestResult({
+          success: false,
+          message: response.data?.error || response.message || "测试失败",
+        });
+      }
+    } catch (err: any) {
+      setTestResult({
+        success: false,
+        message: err.message || "测试请求失败",
+      });
+    } finally {
+      setTesting(false);
+    }
+  }, []);
 
   useInput((inputChar, key) => {
     // Ctrl+C 退出
@@ -219,7 +230,7 @@ export function Settings({ onClose, onSave }: SettingsProps) {
           handleToggle(sectionName, currentItem.key, currentItem.value);
         } else if (currentItem.type === "select" && currentItem.options) {
           handleSelectNext(sectionName, currentItem.key, currentItem.value, currentItem.options);
-        } else if (sectionName === "模型设置" && currentItem.key === "default_model") {
+        } else if (sectionName === "模型设置" && currentItem.key === "默认模型") {
           setShowModelSelector(true);
         } else {
           setIsEditing(true);
@@ -232,6 +243,8 @@ export function Settings({ onClose, onSave }: SettingsProps) {
       reloadSettings();
     } else if (inputChar === "p" && categories[selectedCategory]?.name === "模型设置") {
       setShowModelSelector(true);
+    } else if (inputChar === "t" && categories[selectedCategory]?.name === "模型设置") {
+      handleTestModel();
     }
   });
 
@@ -292,6 +305,12 @@ export function Settings({ onClose, onSave }: SettingsProps) {
         </Text>
         {saving && <Text color="yellow"> (保存中...)</Text>}
         {saveStatusText && <Text color={saveStatusColor}> {saveStatusText}</Text>}
+        {testing && <Text color="yellow"> (测试中...)</Text>}
+        {testResult && (
+          <Text color={testResult.success ? "green" : "red"}>
+            {" "}{testResult.success ? "✓" : "✗"} {testResult.message}
+          </Text>
+        )}
       </Box>
       <Box>
         <Text color="gray">{"─".repeat(60)}</Text>
@@ -369,7 +388,7 @@ export function Settings({ onClose, onSave }: SettingsProps) {
       </Box>
       <Box paddingX={1}>
         <Text color="gray">
-          ↑↓ 选择 | ←→ 切换分类 | Enter 编辑/切换 | r 刷新 | p 选择提供商 | Esc 退出
+          ↑↓ 选择 | ←→ 切换分类 | Enter 编辑/切换 | r 刷新 | p 选择提供商 | t 测试模型 | Esc 退出
         </Text>
       </Box>
       {showModelSelector && (
@@ -377,11 +396,11 @@ export function Settings({ onClose, onSave }: SettingsProps) {
           onSelectProvider={(provider) => {
             setSelectedProvider(provider);
             if (provider.baseUrl) {
-              updateSetting("模型设置", "base_url", provider.baseUrl);
+              updateSetting("模型设置", "Base URL", provider.baseUrl);
             }
           }}
           onSelectModel={(model) => {
-            updateSetting("模型设置", "default_model", model.id);
+            updateSetting("模型设置", "默认模型", model.id);
           }}
           onClose={() => setShowModelSelector(false)}
           selectedProviderId={selectedProvider?.id}
