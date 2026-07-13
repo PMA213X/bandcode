@@ -59,8 +59,10 @@ export default function Chat({ onSwitchView }: ChatProps) {
       const eventSource = new EventSource(
         `/api/chat/stream?session_id=${sessionId}&project=default&message=${encodeURIComponent(text)}`
       )
+      console.log('EventSource created:', eventSource)
 
       eventSource.addEventListener('text', (event) => {
+        console.log('Received text event:', event.data)
         const data = JSON.parse((event as MessageEvent).data)
         setMessages(prev => prev.map(msg =>
           msg.id === assistantId
@@ -85,7 +87,11 @@ export default function Chat({ onSwitchView }: ChatProps) {
         setLoading(false)
       })
 
-      eventSource.onerror = () => {
+      eventSource.onopen = () => {
+        console.log('EventSource opened')
+      }
+      eventSource.onerror = (error) => {
+        console.error('EventSource error:', error)
         eventSource.close()
         setLoading(false)
       }
