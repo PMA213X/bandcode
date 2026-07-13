@@ -6,53 +6,51 @@
 ## 答辩要点
 
 ### 1. 界面设计（2分钟）
-- 聊天界面设计思路
-- 用户交互流程
-- UI/UX 设计原则
+- 整体布局：左侧 Sidebar 导航 + 主内容区 + 命令面板
+- 暗色主题设计，开发者友好的 CLI 工具界面风格
+- 响应式布局，适配不同屏幕尺寸
 
 ### 2. 技术实现（2分钟）
-- React + TypeScript 框架
-- 组件化开发
-- Tailwind CSS 样式设计
+- React 18 + TypeScript + Tailwind CSS + Vite 技术栈
+- 组件化设计：App、Chat、Sidebar、CommandPalette、Settings 等核心组件
+- SSE 客户端：使用 EventSource API 接收后端 12 种事件类型
 
 ### 3. 用户体验（2分钟）
-- 响应式设计
-- 加载状态处理
-- 错误提示
+- 流式输出实时显示 AI 回复
+- 命令面板（Command Palette）快速导航
+- Settings 页面管理模型配置、API Key 等系统参数
 
 ### 负责的源代码文件
 
-- `frontend-web/src/App.tsx` — 主应用组件，路由状态管理、布局结构
-- `frontend-web/src/components/Chat.tsx` — 聊天界面，消息列表、输入框、SSE 流式接收、Markdown 渲染
-- `frontend-web/src/components/Sidebar.tsx` — 侧边栏，导航菜单、快捷键支持
-- `frontend-web/src/components/CommandPalette.tsx` — 命令面板，快捷命令搜索与执行
-- `frontend-web/src/components/Settings.tsx` — 设置面板，配置项展示与编辑
-- `frontend-web/src/index.css` — 全局样式
-- `frontend-web/src/main.tsx` — 前端入口文件
+- `frontend-web/src/App.tsx` — 应用根组件，路由配置、全局状态管理、布局结构
+- `frontend-web/src/Chat.tsx` — 聊天组件，消息列表、输入框、SSE 流式消息渲染、Markdown 渲染
+- `frontend-web/src/Sidebar.tsx` — 侧边栏组件，会话列表、导航菜单、项目切换
+- `frontend-web/src/CommandPalette.tsx` — 命令面板组件，快捷键触发、命令搜索、快速操作
+- `frontend-web/src/Settings.tsx` — 设置页面，模型配置、API Key 管理、系统参数修改
 
 ### 所需知识点
 
-- React 函数组件与 Hooks（useState、useEffect、useRef）
-- TypeScript 类型系统（interface、type）
-- Tailwind CSS 样式框架
-- Lucide React 图标库
-- 组件化设计模式（props 传递、状态提升）
-- CSS 布局（Flexbox、Grid）
+- React Hooks（useState、useEffect、useCallback、useRef、useMemo）
+- TypeScript 类型系统（interface、type、泛型、类型守卫）
+- Tailwind CSS 原子化样式（响应式前缀、暗色模式、自定义主题）
+- 组件化设计原则（单一职责、props 向下传递、事件向上冒泡）
+- SSE 客户端（EventSource API、addEventListener、事件类型分发）
+- Vite 构建工具（HMR、环境变量、构建优化）
 
 ### 可能的问题
 
 **Q1: 为什么选择 React 而不是 Vue？**
 
-A: React 生态成熟，TypeScript 支持完善，与项目的技术栈契合度高。项目使用 React 函数组件 + Hooks（useState、useEffect、useRef）进行状态管理，Tailwind CSS 进行样式设计，Lucide React 提供图标库。React 的组件化设计模式（props 传递、状态提升）适合构建复杂的聊天界面。同时 React 社区有丰富的 SSE 和 Markdown 渲染相关库（如 react-markdown），可以快速实现流式输出显示和 Markdown 格式化。
+A: React 生态成熟，TypeScript 支持优秀，与项目技术需求匹配。React 的组件模型灵活（函数组件 + Hooks），适合构建复杂的交互式界面。React 社区有丰富的 SSE 和 Markdown 渲染相关库（如 react-markdown）。同时团队成员对 React 更熟悉，开发效率更高。Vite 作为构建工具与 React 配合良好，HMR 热更新体验流畅。
 
-**Q2: 如何处理流式输出显示？**
+**Q2: 如何处理 SSE 流式输出的显示？**
 
-A: 前端通过 EventSource API 接收 SSE 事件。后端推送 12 种事件类型（agent_start、text、tool_call、code、done 等），前端根据事件类型分别处理：text 事件实时追加到消息列表，实现打字机效果；agent_start 事件更新当前 Agent 状态指示器；tool_call 事件显示工具调用进度；done 事件标记任务完成。Chat 组件使用 useRef 持有 EventSource 实例，useEffect 在组件卸载时关闭连接，避免内存泄漏。
+A: 前端使用浏览器原生的 EventSource API 接收 SSE 事件。后端通过 sse-starlette 的 EventSourceResponse 返回 SSE 流，事件格式为 `event: <类型>\ndata: <JSON>\n\n`。前端通过 addEventListener 监听不同事件类型（text、agent_start、tool_call、done 等），实时更新 UI 状态。text 事件的 content 会追加到当前消息中，实现打字机效果。done 事件触发时关闭 EventSource 连接。
 
-**Q3: 如何优化界面性能？**
+**Q3: 如何优化界面渲染性能？**
 
-A: 通过以下方式优化：一是 React 条件渲染，只渲染当前需要显示的组件（聊天界面、历史记录、设置面板等通过状态切换）；二是消息列表使用合理的列表渲染策略，避免不必要的重绘；三是 SSE 事件使用 Queue 异步传递，不阻塞 UI 线程；四是 Tailwind CSS 按需加载样式，减少 CSS 体积；五是组件拆分合理（Chat、Sidebar、CommandPalette、Settings 独立组件），单个组件变化不会触发全页面重渲染。
+A: 通过以下方式优化：一是 React.memo 缓存不频繁变化的组件（如 Sidebar），避免父组件更新导致不必要的重渲染；二是 useCallback/useMemo 缓存回调函数和计算结果，减少子组件的 prop 变化；三是消息列表使用虚拟滚动或分页加载，避免大量消息一次性渲染；四是 Tailwind CSS 的 JIT 模式只生成实际使用的样式，减少 CSS 体积。
 
-**Q4: 如何进行用户测试？**
+**Q4: CommandPalette 的设计思路是什么？**
 
-A: 项目提供了 ModelTest 组件（前端），可以在线测试模型连接和流式输出，验证前后端通信是否正常。后端 /api/test 接口支持测试模型连接，返回流式响应。通过 Swagger UI（/docs）可以手动测试所有 API 接口。聊天界面本身就是一个测试环境，可以直接与 AI 对话，验证意图识别、RAG 检索、工具调用等功能是否正常工作。
+A: CommandPalette 参考了 VS Code 的命令面板设计，通过快捷键（Ctrl+K）触发，提供模糊搜索功能。组件维护一个命令列表（切换会话、新建会话、打开设置、查看记忆等），用户输入关键词实时过滤。使用 useRef 管理输入焦点，useEffect 注册键盘事件。选中命令后执行对应的导航或操作函数，关闭面板。这种设计让用户无需鼠标即可快速访问所有功能。
