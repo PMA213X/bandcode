@@ -1,10 +1,11 @@
-import React, { useState } from 'react'
+import { useState } from 'react'
 import Chat from './components/Chat'
 import Settings from './components/Settings'
 import MemoryView from './components/MemoryView'
+import History from './components/History'
 import Sidebar from './components/Sidebar'
 
-type View = 'chat' | 'settings' | 'memory'
+type View = 'chat' | 'settings' | 'memory' | 'history'
 
 function App() {
   const [currentView, setCurrentView] = useState<View>('chat')
@@ -28,9 +29,10 @@ function App() {
         
         {/* 内容区 */}
         <div className="flex-1 overflow-auto">
-          {currentView === 'chat' && <Chat />}
+          {currentView === 'chat' && <Chat onSwitchView={(view) => setCurrentView(view as View)} />}
           {currentView === 'settings' && <Settings />}
           {currentView === 'memory' && <MemoryView />}
+          {currentView === 'history' && <History />}
         </div>
       </main>
     </div>

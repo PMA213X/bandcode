@@ -1,6 +1,6 @@
-import React, { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { Send, Bot, User } from 'lucide-react'
-import axios from 'axios'
+import CommandPalette from './CommandPalette'
 
 interface Message {
   id: string
@@ -10,10 +10,15 @@ interface Message {
   timestamp: Date
 }
 
-export default function Chat() {
+interface ChatProps {
+  onSwitchView?: (view: string) => void
+}
+
+export default function Chat({ onSwitchView }: ChatProps) {
   const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
+  const [commandPaletteOpen, setCommandPaletteOpen] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
   const scrollToBottom = () => {
@@ -24,13 +29,14 @@ export default function Chat() {
     scrollToBottom()
   }, [messages])
 
-  const handleSend = async () => {
-    if (!input.trim() || loading) return
+  const handleSend = async (message?: string) => {
+    const text = message ?? input
+    if (!text.trim() || loading) return
 
     const userMessage: Message = {
       id: Date.now().toString(),
       role: 'user',
-      content: input,
+      content: text,
       timestamp: new Date(),
     }
 
@@ -38,17 +44,46 @@ export default function Chat() {
     setInput('')
     setLoading(true)
 
+    // 创建助手消息占位
+    const assistantId = (Date.now() + 1).toString()
+    const assistantMessage: Message = {
+      id: assistantId,
+      role: 'assistant',
+      content: '',
+      timestamp: new Date(),
+    }
+    setMessages(prev => [...prev, assistantMessage])
+
     try {
-      // SSE 请求
+      const sessionId = 'default'
       const eventSource = new EventSource(
-        `/api/chat/stream?message=${encodeURIComponent(input)}`
+        `/api/chat/stream?session_id=${sessionId}&project=default&message=${encodeURIComponent(text)}`
       )
 
-      eventSource.onmessage = (event) => {
-        const data = JSON.parse(event.data)
-        // 处理 SSE 事件
-        console.log('SSE:', data)
-      }
+      eventSource.addEventListener('text', (event) => {
+        const data = JSON.parse((event as MessageEvent).data)
+        setMessages(prev => prev.map(msg =>
+          msg.id === assistantId
+            ? { ...msg, content: msg.content + data.content }
+            : msg
+        ))
+      })
+
+      eventSource.addEventListener('chat_error', (event) => {
+        const data = JSON.parse((event as MessageEvent).data)
+        setMessages(prev => prev.map(msg =>
+          msg.id === assistantId
+            ? { ...msg, content: msg.content || `[错误] ${data.message || '未知错误'}` }
+            : msg
+        ))
+        eventSource.close()
+        setLoading(false)
+      })
+
+      eventSource.addEventListener('done', () => {
+        eventSource.close()
+        setLoading(false)
+      })
 
       eventSource.onerror = () => {
         eventSource.close()
@@ -57,6 +92,23 @@ export default function Chat() {
     } catch (error) {
       console.error('Error:', error)
       setLoading(false)
+    }
+  }
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      handleSend()
+    } else if (e.key === '/' && !input) {
+      e.preventDefault()
+      setCommandPaletteOpen(true)
+    }
+  }
+
+  const handleCommandMessage = (message: string) => {
+    if (message === '/clear') {
+      setMessages([])
+    } else if (message) {
+      handleSend(message)
     }
   }
 
@@ -71,7 +123,7 @@ export default function Chat() {
             <p className="text-sm mt-2">使用 / 打开命令面板</p>
           </div>
         )}
-        
+
         {messages.map((msg) => (
           <div
             key={msg.id}
@@ -82,7 +134,7 @@ export default function Chat() {
                 <Bot size={16} />
               </div>
             )}
-            
+
             <div
               className={`max-w-[70%] rounded-lg px-4 py-2 ${
                 msg.role === 'user'
@@ -95,7 +147,7 @@ export default function Chat() {
                 {msg.timestamp.toLocaleTimeString()}
               </div>
             </div>
-            
+
             {msg.role === 'user' && (
               <div className="w-8 h-8 rounded-full bg-gray-600 flex items-center justify-center">
                 <User size={16} />
@@ -103,10 +155,10 @@ export default function Chat() {
             )}
           </div>
         ))}
-        
+
         <div ref={messagesEndRef} />
       </div>
-      
+
       {/* 输入框 */}
       <div className="border-t border-gray-700 p-4">
         <div className="flex gap-2">
@@ -114,13 +166,13 @@ export default function Chat() {
             type="text"
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && handleSend()}
+            onKeyDown={handleKeyDown}
             placeholder="输入消息... (/ 打开命令面板)"
             className="input flex-1"
             disabled={loading}
           />
           <button
-            onClick={handleSend}
+            onClick={() => handleSend()}
             disabled={loading || !input.trim()}
             className="btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
           >
@@ -128,6 +180,14 @@ export default function Chat() {
           </button>
         </div>
       </div>
+
+      {/* 命令面板 */}
+      <CommandPalette
+        isOpen={commandPaletteOpen}
+        onClose={() => setCommandPaletteOpen(false)}
+        onSendMessage={handleCommandMessage}
+        onSwitchView={onSwitchView}
+      />
     </div>
   )
 }
