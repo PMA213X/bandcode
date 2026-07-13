@@ -20,6 +20,26 @@
 - 如何与前端通信
 - 如何处理并发请求
 
+### 负责的源代码文件
+
+- `backend/api/chat.py` — 聊天 API，流式聊天接口（SSE）、聊天历史接口、LLM 调用集成
+- `backend/api/sse.py` — SSE 事件推送封装，12 种事件类型定义、Pydantic 事件模型、连接管理器、事件生成器
+- `backend/api/users.py` — 用户 API，创建用户、获取用户列表
+- `backend/api/settings.py` — 设置 API，获取/更新系统配置
+- `backend/api/test.py` — 模型测试 API，测试模型连接、流式输出测试
+- `backend/models/llm.py` — LLM 客户端封装，AsyncOpenAI 调用、流式/非流式对话、错误处理
+- `backend/models/requests.py` — 请求数据模型，Pydantic Field 验证
+- `backend/models/responses.py` — 响应数据模型，统一响应格式
+
+### 所需知识点
+
+- FastAPI 路由系统（APIRouter、prefix、tags）
+- Server-Sent Events（SSE）原理与实现（sse-starlette、EventSourceResponse）
+- Pydantic BaseModel 数据验证（Field、validator）
+- OpenAI Python SDK（AsyncOpenAI、chat.completions.create）
+- 异步编程（asyncio.Queue、asyncio.create_task、async for）
+- RESTful API 设计规范
+
 ### 可能的问题
 
 1. 为什么选择 FastAPI 而不是 Django？
