@@ -25,8 +25,8 @@ import type { ChatMessage, SSEEvent, AgentStartEvent } from "../types";
  * project: 项目名称，用于标识当前项目
  */
 interface ChatProps {
-  sessionId: string;
-  project: string;
+  sessionId?: string;
+  project?: string;
 }
 
 /**
@@ -56,7 +56,7 @@ const ROLE_ICONS: Record<string, string> = {
  * Chat 聊天界面主组件
  * 管理消息状态、输入处理、SSE 连接和 UI 渲染
  */
-export function Chat({ sessionId, project }: ChatProps) {
+export function Chat({ sessionId = "default", project = "default" }: ChatProps) {
   // 消息列表状态，存储所有对话消息
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   // 用户输入内容状态

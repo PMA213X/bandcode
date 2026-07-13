@@ -25,6 +25,7 @@ interface SettingsItem {
 }
 
 interface SettingsProps {
+  onClose?: () => void;
   onSave?: (settings: Record<string, any>) => void;
 }
 
@@ -103,7 +104,7 @@ const CATEGORY_META: Record<string, { icon: string; items: Omit<SettingsItem, "v
   },
 };
 
-export function Settings({ onSave }: SettingsProps) {
+export function Settings({ onClose, onSave }: SettingsProps) {
   const { settings: apiSettings, loading, error, saving, saveStatus, updateSetting, reloadSettings } = useSettings();
 
   const [selectedCategory, setSelectedCategory] = useState(0);
@@ -171,6 +172,8 @@ export function Settings({ onSave }: SettingsProps) {
       if (isEditing) {
         setIsEditing(false);
         setEditBuffer("");
+      } else if (onClose) {
+        onClose();
       } else {
         exit();
       }
