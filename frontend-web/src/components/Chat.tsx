@@ -61,6 +61,12 @@ export default function Chat({ onSwitchView }: ChatProps) {
       )
       console.log('EventSource created:', eventSource)
 
+      // 忽略中间事件，防止 EventSource 把未知事件类型当错误处理
+      const ignoreEvents = ['agent_start', 'constraint_result', 'plan', 'tool_call', 'code', 'test_result', 'review_result', 'memory_update', 'approval_required']
+      ignoreEvents.forEach(evt => {
+        eventSource.addEventListener(evt, () => {})
+      })
+
       eventSource.addEventListener('text', (event) => {
         console.log('Received text event:', event.data)
         const data = JSON.parse((event as MessageEvent).data)

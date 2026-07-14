@@ -16,6 +16,10 @@ class WorkspaceInfo(BaseModel):
     exists: bool
 
 
+class UpdateWorkspaceRequest(BaseModel):
+    path: str
+
+
 @router.get("/info", response_model=dict)
 async def get_workspace_info():
     """获取工作区信息"""
@@ -27,6 +31,25 @@ async def get_workspace_info():
             "exists": os.path.exists(workspace_path),
         },
         "message": "获取成功",
+    }
+
+
+@router.post("/update", response_model=dict)
+async def update_workspace(req: UpdateWorkspaceRequest):
+    """修改工作区路径"""
+    global workspace_path
+    new_path = os.path.normpath(req.path)
+    if not os.path.isdir(new_path):
+        return {"code": -1, "message": f"路径不存在或不是目录: {new_path}", "data": None}
+    workspace_path = new_path
+    return {
+        "code": 0,
+        "data": {
+            "path": workspace_path,
+            "name": os.path.basename(workspace_path),
+            "exists": True,
+        },
+        "message": "工作区已更新",
     }
 
 

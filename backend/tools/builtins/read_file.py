@@ -38,31 +38,14 @@ class ReadFileTool(Tool):
         }
     }
 
-    async def execute(self, file_path: str, encoding: str = "utf-8", **kwargs) -> ToolResult:
-        """
-        执行读取文件
-
-        Args:
-            file_path: 文件路径
-            encoding: 文件编码（默认utf-8）
-
-        Returns:
-            文件内容或错误信息
-        """
+    async def execute(self, file_path: str, encoding: str = "utf-8", workspace: str = "", **kwargs) -> ToolResult:
         try:
-            # 创建Path对象
-            path = Path(file_path)
-            # 检查文件是否存在
+            path = self.resolve_path(file_path, workspace)
             if not path.exists():
-                return ToolResult(success=False, error=f"File not found: {file_path}")
-
-            # 检查是否为文件（非目录）
+                return ToolResult(success=False, error=f"File not found: {path}")
             if not path.is_file():
-                return ToolResult(success=False, error=f"Not a file: {file_path}")
-
-            # 读取文件内容
+                return ToolResult(success=False, error=f"Not a file: {path}")
             content = path.read_text(encoding=encoding)
             return ToolResult(success=True, data=content)
         except Exception as e:
-            # 捕获异常并返回错误
             return ToolResult(success=False, error=str(e))

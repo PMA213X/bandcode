@@ -10,6 +10,12 @@ export default defineConfig({
       '/api': {
         target: 'http://localhost:8000',
         changeOrigin: true,
+        configure: (proxy) => {
+          proxy.on('proxyRes', (proxyRes) => {
+            // 禁用 SSE 响应的缓冲
+            proxyRes.headers['x-accel-buffering'] = 'no'
+          })
+        },
       }
     }
   }

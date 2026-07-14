@@ -13,6 +13,8 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 # 导入类型提示
 from typing import Any, Optional
+# 导入路径处理
+from pathlib import Path
 # 导入日志模块
 import logging
 
@@ -44,30 +46,19 @@ class ToolResult:
 
 
 class Tool(ABC):
-    """
-    工具基类
-
-    所有工具都应继承此类，并实现execute()方法。
-    提供参数验证、Schema生成等基础功能。
-
-    子类必须定义：
-        - name: 工具名称
-        - description: 工具描述
-        - execute(): 执行逻辑
-
-    子类可选覆盖：
-        - permission: 所需权限（默认read）
-        - parameters: 参数定义（JSON Schema格式）
-    """
-
-    # 工具名称（子类必须覆盖）
     name: str = "base"
-    # 工具描述
     description: str = "基础工具"
-    # 所需权限：read, write, bash, admin
     permission: str = "read"
-    # 参数定义（JSON Schema格式）
     parameters: dict = field(default_factory=dict)
+
+    def resolve_path(self, file_path: str, workspace: str = "") -> Path:
+        """将路径解析为绝对路径，相对路径基于工作区"""
+        p = Path(file_path)
+        if p.is_absolute():
+            return p
+        if workspace:
+            return Path(workspace) / p
+        return p.resolve()
 
     @abstractmethod
     async def execute(self, **kwargs) -> ToolResult:

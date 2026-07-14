@@ -39,37 +39,19 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
     """
     
     async def dispatch(self, request: Request, call_next):
-        """
-        处理请求
-        
-        Args:
-            request: HTTP 请求对象
-            call_next: 调用下一个中间件或路由处理函数
-        
-        Returns:
-            HTTP 响应对象
-        """
-        # 记录请求开始时间
+        # SSE 流式端点跳过中间件，避免 BaseHTTPMiddleware 缓冲响应
+        if "/stream" in request.url.path:
+            return await call_next(request)
+
         start_time = time.time()
-        
-        # 记录请求开始日志
         logger.info(f"请求开始: {request.method} {request.url.path}")
-        
-        # 调用下一个中间件或路由处理函数
         response = await call_next(request)
-        
-        # 计算处理时间
         process_time = time.time() - start_time
-        
-        # 记录请求结束日志
         logger.info(
             f"请求完成: {request.method} {request.url.path} "
             f"状态码={response.status_code} 耗时={process_time:.3f}s"
         )
-        
-        # 将处理时间添加到响应头
         response.headers["X-Process-Time"] = str(process_time)
-        
         return response
 
 
@@ -86,25 +68,12 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
     """
     
     async def dispatch(self, request: Request, call_next):
-        """
-        处理请求
-        
-        Args:
-            request: HTTP 请求对象
-            call_next: 调用下一个中间件或路由处理函数
-        
-        Returns:
-            HTTP 响应对象
-        """
-        # 调用下一个中间件或路由处理函数
+        # SSE 流式端点跳过中间件，避免 BaseHTTPMiddleware 缓冲响应
+        if "/stream" in request.url.path:
+            return await call_next(request)
+
         response = await call_next(request)
-        
-        # 添加安全头
-        # X-Content-Type-Options: 防止浏览器 MIME 类型嗅探
         response.headers["X-Content-Type-Options"] = "nosniff"
-        # X-Frame-Options: 防止页面被嵌入到 iframe 中（防止点击劫持）
         response.headers["X-Frame-Options"] = "DENY"
-        # X-XSS-Protection: 启用浏览器 XSS 过滤
         response.headers["X-XSS-Protection"] = "1; mode=block"
-        
         return response

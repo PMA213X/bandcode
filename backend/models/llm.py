@@ -115,3 +115,29 @@ class LLMClient:
             error_msg = self._handle_error(e)
             logger.error(error_msg)
             raise RuntimeError(error_msg) from e
+
+    async def chat_with_tools(
+        self,
+        messages: list[dict],
+        tools: list[dict] = None,
+        temperature: float = 0.1,
+        max_tokens: Optional[int] = None,
+    ):
+        """带工具调用的对话，返回完整的 completion 对象（支持 function calling）"""
+        kwargs = {
+            "model": self.model,
+            "messages": messages,
+            "temperature": temperature,
+        }
+        if max_tokens:
+            kwargs["max_tokens"] = max_tokens
+        if tools:
+            kwargs["tools"] = tools
+
+        try:
+            response = await self.client.chat.completions.create(**kwargs)
+            return response
+        except Exception as e:
+            error_msg = self._handle_error(e)
+            logger.error(error_msg)
+            raise RuntimeError(error_msg) from e

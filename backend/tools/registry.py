@@ -177,7 +177,7 @@ class ToolRegistry:
         """
         return [tool.get_schema() for tool in self.tools.values()]
 
-    async def call(self, name: str, args: dict, agent_permissions: dict) -> ToolResult:
+    async def call(self, name: str, args: dict, agent_permissions: dict, workspace: str = "") -> ToolResult:
         """
         调用工具，检查权限后执行
 
@@ -185,6 +185,7 @@ class ToolRegistry:
             name: 工具名称
             args: 工具参数
             agent_permissions: Agent权限配置
+            workspace: 工作区路径
 
         Returns:
             工具执行结果
@@ -211,7 +212,7 @@ class ToolRegistry:
         # 执行工具
         self.logger.info(f"Executing tool: {name}")
         try:
-            result = await tool.execute(**args)
+            result = await tool.execute(workspace=workspace, **args)
             self.logger.info(f"Tool {name} executed successfully")
             return result
         except Exception as e:
