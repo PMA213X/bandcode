@@ -27,7 +27,7 @@ from pydantic import BaseModel
 # 导入类型注解
 from typing import Optional, List
 # 导入 SSE 响应类
-from sse_starlette.sse import EventSourceResponse
+from starlette.responses import StreamingResponse
 # 导入自定义 SSE 事件推送函数
 from api.sse import (
     SSEEventType,  # SSE 事件类型
@@ -50,6 +50,8 @@ from memory.manager import MemoryManager
 from config.loader import get_config
 # 导入 LLM 客户端
 from models.llm import LLMClient
+from tools.registry import ToolRegistry
+import api.workspace as _ws
 
 logger = logging.getLogger("bandcode.chat")
 
@@ -59,6 +61,44 @@ router = APIRouter(prefix="/chat", tags=["聊天"])
 
 # 全局 MemoryManager 实例
 memory_manager = MemoryManager()
+
+# 初始化工具注册中心
+tool_registry = ToolRegistry()
+tool_registry.auto_discover()
+
+SYSTEM_PROMPT = """你是 BandCode，一个 AI 编程助手。你可以帮助用户编写代码、回答技术问题、管理文件。
+
+你拥有以下工具：
+- read_file: 读取文件内容（参数：file_path）
+- write_file: 写入或创建文件（参数：file_path, content）
+- list_directory: 列出目录内容（参数：path）
+- search_project: 在项目中搜索（参数：query）
+- search_knowledge: 在知识库中搜索（参数：query）
+
+当用户要求你读取、创建、修改文件时，必须使用相应工具。不要只说"我来帮你"然后不调用工具。
+用中文回复。"""
+
+
+def _build_openai_tools() -> list[dict]:
+    """将注册的工具转换为 OpenAI function calling 格式"""
+    openai_tools = []
+    for tool_name in tool_registry.list_tools():
+        tool = tool_registry.get(tool_name)
+        props = {}
+        required = []
+        for k, v in tool.parameters.items():
+            props[k] = {"type": v.get("type", "string"), "description": v.get("description", "")}
+            if v.get("required", False):
+                required.append(k)
+        openai_tools.append({
+            "type": "function",
+            "function": {
+                "name": tool.name,
+                "description": tool.description,
+                "parameters": {"type": "object", "properties": props, "required": required},
+            },
+        })
+    return openai_tools
 
 
 class ChatStreamRequest(BaseModel):
@@ -123,17 +163,8 @@ def _get_chat_history_messages(session_id: str) -> List[dict]:
 async def process_chat(
     session_id: str, project: str, message: str, event_queue: asyncio.Queue
 ):
-    """
-    处理聊天请求 - 调用 LLM API 生成回复
-
-    Args:
-        session_id: 会话 ID
-        project: 项目名称
-        message: 用户消息
-        event_queue: SSE 事件队列
-    """
+    """处理聊天请求 — 支持工具调用循环"""
     try:
-        # ========== 记录用户消息到历史 ==========
         if session_id not in chat_history:
             chat_history[session_id] = []
 
@@ -144,57 +175,78 @@ async def process_chat(
             "created_at": datetime.now().isoformat(),
         })
 
-        # ========== 记录用户消息到 Memory ==========
         memory_manager.record_conversation("user", message)
 
-        # ========== 第1步：Constraint Agent 检索约束 ==========
-        await push_agent_start(event_queue, "constraint", "running")
-        await push_constraint_result(
-            event_queue,
-            constraints=["代码必须使用中文注释", "API 返回统一格式 {code, data, message}"],
-            summary="找到 2 条相关约束",
-        )
+        # 构建消息列表
+        llm_messages = [{"role": "system", "content": SYSTEM_PROMPT}]
+        llm_messages.extend(_get_chat_history_messages(session_id))
 
-        # ========== 第2步：Planner Agent 分析需求 ==========
-        await push_agent_start(event_queue, "planner", "running")
-        await push_plan(
-            event_queue,
-            tasks=["分析用户需求", "生成回复"],
-            delegated_agent="complex_coder",
-        )
-
-        # ========== 第3步：调用 LLM 生成回复 ==========
-        await push_agent_start(event_queue, "complex_coder", "running")
+        # 构建工具定义
+        openai_tools = _build_openai_tools()
 
         llm_client = _build_llm_client("complex_coder")
-        llm_messages = _get_chat_history_messages(session_id)
+        await push_agent_start(event_queue, "complex_coder", "running")
 
-        full_response = ""
-        try:
-            async for chunk in llm_client.chat_stream(llm_messages):
-                full_response += chunk
-                await push_text(event_queue, chunk, agent="complex_coder")
-        except Exception as llm_error:
-            logger.error(f"LLM 调用失败: {llm_error}")
-            await push_error(event_queue, f"LLM 调用失败: {str(llm_error)}")
-            return
+        # 工具调用循环（最多 5 轮）
+        for _ in range(5):
+            response = await llm_client.chat_with_tools(llm_messages, tools=openai_tools)
+            choice = response.choices[0]
 
-        # ========== 第4步：记录助手回复到历史 ==========
+            # 如果 LLM 没有调用工具，输出文本并结束
+            if not choice.message.tool_calls:
+                full_response = choice.message.content or ""
+                # 流式输出最终回复（分块推送给前端）
+                for i in range(0, len(full_response), 50):
+                    await push_text(event_queue, full_response[i:i+50], agent="complex_coder")
+                break
+
+            # LLM 调用了工具 — 执行工具
+            tool_calls = choice.message.tool_calls
+            # 先把 assistant 的 tool_calls 消息加入上下文
+            llm_messages.append(choice.message.model_dump())
+
+            for tc in tool_calls:
+                func_name = tc.function.name
+                try:
+                    func_args = json.loads(tc.function.arguments)
+                except json.JSONDecodeError:
+                    func_args = {}
+
+                await push_tool_call(event_queue, tool=func_name, args=func_args)
+
+                # 执行工具
+                permissions = {"read": "allow", "write": "allow", "bash": "allow", "admin": "allow"}
+                result = await tool_registry.call(func_name, func_args, permissions, workspace=_ws.workspace_path)
+
+                result_content = result.data if result.success else f"错误: {result.error}"
+                if isinstance(result_content, dict):
+                    result_content = json.dumps(result_content, ensure_ascii=False, indent=2)
+                elif not isinstance(result_content, str):
+                    result_content = str(result_content)
+
+                # 工具结果加入上下文
+                llm_messages.append({
+                    "role": "tool",
+                    "tool_call_id": tc.id,
+                    "content": result_content,
+                })
+
+                # 推送工具结果到前端
+                await push_text(event_queue, f"\n[工具 {func_name} 执行完成]\n", agent="complex_coder")
+        else:
+            full_response = "达到最大工具调用轮数，请重试。"
+
+        # 记录助手回复
         chat_history[session_id].append({
             "id": len(chat_history[session_id]),
             "role": "assistant",
             "agent": "complex_coder",
-            "content": full_response,
+            "content": full_response if 'full_response' in dir() else "",
             "created_at": datetime.now().isoformat(),
         })
 
-        # ========== 第5步：更新 Memory ==========
-        memory_manager.record_conversation("assistant", full_response, agent="complex_coder")
-        await push_memory_update(
-            event_queue, layers=["session", "checkpoint"], message="已更新会话记忆"
-        )
-
-        # ========== 第6步：完成 ==========
+        memory_manager.record_conversation("assistant", full_response if 'full_response' in dir() else "", agent="complex_coder")
+        await push_memory_update(event_queue, layers=["session"], message="已更新会话记忆")
         await push_done(event_queue, session_id, f"已处理消息：{message}")
 
     except Exception as e:
@@ -236,7 +288,11 @@ async def chat_stream(
 
     # 返回 SSE 响应
     # sse_generator() 会从事件队列中读取事件并生成 SSE 格式的响应
-    return EventSourceResponse(sse_generator(event_queue))
+    return StreamingResponse(
+        sse_generator(event_queue),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-store", "X-Accel-Buffering": "no"},
+    )
 
 
 @router.get("/history")

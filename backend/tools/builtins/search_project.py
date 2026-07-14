@@ -56,59 +56,31 @@ class SearchProjectTool(Tool):
         directory: str = ".",
         file_pattern: str = "*",
         max_results: int = 50,
+        workspace: str = "",
         **kwargs
     ) -> ToolResult:
-        """
-        执行搜索
-
-        Args:
-            query: 搜索关键词
-            directory: 搜索目录
-            file_pattern: 文件匹配模式
-            max_results: 最大结果数
-
-        Returns:
-            搜索结果或错误信息
-        """
         try:
-            # 创建Path对象
-            path = Path(directory)
-            # 检查目录是否存在
+            path = self.resolve_path(directory, workspace)
             if not path.exists():
-                return ToolResult(success=False, error=f"Directory not found: {directory}")
-
-            # 存储结果
+                return ToolResult(success=False, error=f"Directory not found: {path}")
             results = []
-            # 编译正则表达式
             pattern = re.compile(query, re.IGNORECASE)
-
-            # 遍历文件
             for file_path in path.rglob(file_pattern):
-                # 跳过二进制文件和隐藏文件
                 if file_path.is_dir() or file_path.name.startswith("."):
                     continue
-
-                # 检查结果数量
                 if len(results) >= max_results:
                     break
-
                 try:
-                    # 读取文件内容
                     content = file_path.read_text(encoding="utf-8", errors="ignore")
-                    # 搜索匹配
                     matches = list(pattern.finditer(content))
                     if matches:
-                        # 添加到结果
                         results.append({
                             "file": str(file_path),
                             "matches": len(matches),
-                            "preview": content[:200]  # 预览前200字符
+                            "preview": content[:200]
                         })
                 except Exception:
-                    # 忽略读取错误
                     continue
-
             return ToolResult(success=True, data=results)
-
         except Exception as e:
             return ToolResult(success=False, error=str(e))

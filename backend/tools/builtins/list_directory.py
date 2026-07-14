@@ -45,40 +45,22 @@ class ListDirectoryTool(Tool):
 
     async def execute(
         self,
-        dir_path: str,
+        dir_path: str = ".",
         recursive: bool = False,
         max_depth: int = 3,
+        workspace: str = "",
         **kwargs
     ) -> ToolResult:
-        """
-        执行列出目录
-
-        Args:
-            dir_path: 目录路径
-            recursive: 是否递归列出（默认false）
-            max_depth: 最大递归深度（默认3）
-
-        Returns:
-            目录内容列表或错误信息
-        """
         try:
-            # 创建Path对象
-            path = Path(dir_path)
-            # 检查目录是否存在
+            path = self.resolve_path(dir_path, workspace)
             if not path.exists():
-                return ToolResult(success=False, error=f"Directory not found: {dir_path}")
-
-            # 检查是否为目录（非文件）
+                return ToolResult(success=False, error=f"Directory not found: {path}")
             if not path.is_dir():
-                return ToolResult(success=False, error=f"Not a directory: {dir_path}")
-
-            # 存储结果
+                return ToolResult(success=False, error=f"Not a directory: {path}")
             result = []
-            # 递归列出目录
             self._list_recursive(path, result, recursive, max_depth, 0)
             return ToolResult(success=True, data=result)
         except Exception as e:
-            # 捕获异常并返回错误
             return ToolResult(success=False, error=str(e))
 
     def _list_recursive(
